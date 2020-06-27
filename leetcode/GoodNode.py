@@ -12,7 +12,6 @@ class Solution:
         print(count)
         return count
 
-
 def searchGoodNodeRecursion(treeRoot: TreeNode, maxVal: int, countGoodNodes:int):
     if treeRoot.val is not None:
         if treeRoot.val >= maxVal:
@@ -23,12 +22,6 @@ def searchGoodNodeRecursion(treeRoot: TreeNode, maxVal: int, countGoodNodes:int)
     if treeRoot.right is not None:
         countGoodNodes = searchGoodNodeRecursion(treeRoot.right,maxVal,countGoodNodes)
     return countGoodNodes
-
-
-
-
-
-
 
 def example(root, node2, node3, node4, node5):
     treeRoot = TreeNode(root)
@@ -46,27 +39,13 @@ def example(root, node2, node3, node4, node5):
 sol = Solution()
 sol.goodNodes(example(3,3,None,4,2))
 
-
-
 class Sum:
     def __init__(self,s):
         self.s = s
 
-
 res = Sum(5)
-
 
 def sum (res: Sum):
     res.s = res.s+2
 
 sum(res)
-# print(res.s)
-
-# def sum2 (s):
-#     s=s+1
-#     return s
-# s = 5
-# s = sum2(s)
-# print(s)
-
-
