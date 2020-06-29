@@ -1,47 +1,24 @@
 class Solution:
     def canJump(self, nums: list) -> bool:
-        lastIndex = len(nums)-1
+        rememberedNumber = nums[0]
         curIndex = 0
+        lastIndex = len(nums)-1
         if len(nums) == 1:
             return True
-        if nums[curIndex] ==0:
+        if rememberedNumber == 0:
             return False
-        loopDictionary = {}
-        ret = jumpRecursion(nums,curIndex,lastIndex,loopDictionary,curIndex)
-        return ret
-
-def jumpRecursion(nums: list, curIndex: int, lastIndex:int, loopDictionary: dict, beforeCurIndex:int):
-   step =0
-   maxValInJump =0
-   savedIndex =0
-   nowIndex = curIndex
-   if curIndex not in loopDictionary.keys():
-       loopDictionary[curIndex] = 1
-       if curIndex != lastIndex:
-           while step<nums[nowIndex]:
-               step+=1
-               curIndex+=1
-               if maxValInJump<=nums[curIndex]:
-                   savedIndex = curIndex
-                   maxValInJump = nums[curIndex]
-               if curIndex == lastIndex:
-                   return True
-           if nowIndex != lastIndex-1:
-                if maxValInJump ==0:
-                    if nums[beforeCurIndex]>nums[curIndex]:
-                        nums[savedIndex] = nums[beforeCurIndex]-savedIndex
-                        ret = jumpRecursion(nums,beforeCurIndex,lastIndex,loopDictionary,0)
-                    else:
-                        return False
+        else:
+            while rememberedNumber>=0:
+                if curIndex == lastIndex:
+                    return True
                 else:
-                    ret = jumpRecursion(nums,savedIndex,lastIndex,loopDictionary,curIndex)
-           else:
-               ret = False
-       else:
-           return True
-   else:
-       return False
-   return ret
+                    rememberedNumber-=1
+                    curIndex+=1
+                    if nums[curIndex] >rememberedNumber:
+                        rememberedNumber = nums[curIndex]
+                    if rememberedNumber == 0 and curIndex !=lastIndex:
+                        return False
+            return False
 
 def test(sol, input, expect):
     ret = sol.canJump(input)
