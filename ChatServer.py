@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 import socket
 import Logging
-from threading import Thread
+from threading import Thread # импортируем Thread которая позволит создавать разные потоки, если это не запускать, то приложения получаются однопоточные
 
 
-class CommandProcessor:
+class CommandProcessor: # создан тип Command Processor
     logger = Logging.getLogger("processor")
 
-    def __init__(self, clients: map, conn:socket, ip, port):
+    def __init__(self, clients: map, conn:socket, ip, port): # задаем параметры класса
         self.conn = conn
         self.clients = clients
         self.ip = ip
@@ -16,58 +16,57 @@ class CommandProcessor:
         self.buffer = b''
         # self.logger = Logging.getLogger("processor")
 
-    def start(self):
+    def start(self): # этот метод запускает инфо логера
         self.logger.info("start processing commands")
 
-    def finish(self):
+    def finish(self): # эта функция запускает инфо логера и задает значение в словаре clients по ключу clientName = None
         self.logger.info("finish processing commands")
         self.clients[self.clientName] = None
 
-    def processNewChunk(self, chunk):
-        self.buffer += chunk
+    def processNewChunk(self, chunk): # этот метод принимает новый кусок данных
+        self.buffer += chunk # добавляет их к данным буфера
         while True:
-            if b';' not in self.buffer:
+            if b';' not in self.buffer: # если байтов ; нет в буфере, выход из цикла
                 break
-            message, ignored, self.buffer = self.buffer.partition(b';')
-            messageType, ignored, messageBody = message.partition(b':')
-            self.onCommand(messageType, messageBody)
+            message, ignored, self.buffer = self.buffer.partition(b';') # разделяет содержимое в буфере на части и присваивает их значения картежу, если находит разделитель ";"
+            messageType, ignored, messageBody = message.partition(b':')  # разделяет содержимое в сообщении на части и присваивает их значения картежу, если находит разделитель ":"
+            self.onCommand(messageType, messageBody) # запускает функцию OnCommand и передает в нее аргументами тип сообщения и тело сообщения
 
     def onCommand(self, command, data) -> bool:
-        self.logger.info("processing command[{}], data[{}]".format(command, data))
-        if command == b'name':
-            self.clientName = str(data)
-            self.clients[self.clientName] = self
-        elif command == b'msg':
-            self.logger.info("user [{}] says [{}]".format(self.clientName, data))
-        return True
-
+        self.logger.info("processing command[{}], data[{}]".format(command, data)) # запускает инфо логера который распечатывает какие аргументы были переданы в функцию
+        if command == b'name': # если значение байтов = 'name'
+            self.clientName = str(data) # присваивает clientName = переводу в строку параметра data
+            self.clients[self.clientName] = self # создает новый ключ в словаре clients  равный clientName
+        elif command == b'msg': # если в байтах сообщение
+            self.logger.info("user [{}] says [{}]".format(self.clientName, data)) # запускается инфологер с содержанием имени клиента и сообщения
+        return True # всегда возвращает True
 
 # Multithreaded Python server : TCP Server Socket Thread Pool
-class ClientThread(Thread):
-    logger = Logging.getLogger("clientThread")
+class ClientThread(Thread): # создан новый тип ClientThread принимающий параметр Thread
+    logger = Logging.getLogger("clientThread") # создает логера 'ClientThread'
 
     def __init__(self, processor: CommandProcessor, conn: socket):
-        Thread.__init__(self, name="t-{}:{}".format(ip, port), daemon=True)
+        Thread.__init__(self, name="t-{}:{}".format(ip, port), daemon=True ) # инициируется новый поток, задается его имя, daemon означает что поток будет завершен сразу после выхода из программы
         self.processor = processor
         self.conn = conn
 
-    def run(self):
+    def run(self): # если запустить напрямую то будет выполнятся в том же потоке что и основной код
         try:
-            self.processor.start()
-            with self.conn:
+            self.processor.start()  #запускает метод start у объекта типа CommandProcessor, который запустит инфо логера и выведет сообщение о начале обработки команд
+            with self.conn: # с переданным сокетом
                 while True:
-                    data = self.conn.recv(1024)
-                    if not data:
+                    data = self.conn.recv(1024) # в бесконечном цикле принимаем по 1кб данных от клиента
+                    if not data: # если данных нет, ничего не возвращает
                         return
-                    if not self.processor.processNewChunk(data):
+                    if not self.processor.processNewChunk(data): # если нет новых данных, ничего не возвращает
                         return
-        except ConnectionResetError:
+        except ConnectionResetError: # вместо ошибки сброса соединения запускает инфо логера
             self.logger.info("client closed connection")
-        except:
+        except: # вместо остальных ошибок запускает инфо логера + показывает информацию об ошибке
             self.logger.info("unknown error", exc_info=True)
-        finally:
+        finally: # в концезапускает инфо логера выходим из нити и запускает метод finish у объекта типа CommandProcessor
             self.logger.info("exiting thread")
-            self.processor.finish()
+            self.processor.finish() # метод finish запустит инфо логера и обнулит значение по ключу ClientName
 
 
 # Multithreaded Python server : TCP Server Socket Program Stub
@@ -86,14 +85,14 @@ allClients = {}
 
 mainLogger.info("SERVER: Waiting for connections from TCP clients on {}:{} ...".format(HOST, PORT))
 while True:
-    tcpServer.listen()
-    (connection, (ip, port)) = tcpServer.accept()
-    processor = CommandProcessor(allClients, connection, ip, port)
-    newthread = ClientThread(processor, connection)
-    newthread.start()
-    threads.append(newthread)
+    tcpServer.listen() # у tcp Server'a запускается режим прослушивания с неограниченным количеством подключений
+    (connection, (ip, port)) = tcpServer.accept() # задано имя нового сокета и адрес клиента
+    processor = CommandProcessor(allClients, connection, ip, port) # создается новый объект типа CommandProcessor
+    newthread = ClientThread(processor, connection) # создается новый объект типа ClientThread
+    newthread.start() # запускается объект класса ClientThread который после запуска вызовет содержание функции run() в отдельном потоке
+    threads.append(newthread) # в список добавляется объект класса ClientThread
 
 for t in threads:
-    t.join()
+    t.join() # соединяет все элементы в массиве threads
 
-mainLogger.info("SERVER: Exit")
+mainLogger.info("SERVER: Exit") # запусается главный инфо логер
