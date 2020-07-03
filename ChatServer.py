@@ -22,14 +22,16 @@ class CommandProcessor:                                                         
         self.logger.info("finish processing commands")
         self.clients[self.clientName] = None
 
-    def processNewChunk(self, chunk):                                              # этот метод принимает новый кусок данных
+    def processNewChunk(self, chunk) -> bool:                                      # этот метод принимает новый кусок данных
         self.buffer += chunk                                                       # добавляет их к данным буфера
         while True:
             if b';' not in self.buffer:                                            # если байтов ; нет в буфере, выход из цикла
                 break
             message, ignored, self.buffer = self.buffer.partition(b';')            # разделяет содержимое в буфере на части и присваивает их значения картежу, если находит разделитель ";"
             messageType, ignored, messageBody = message.partition(b':')            # разделяет содержимое в сообщении на части и присваивает их значения картежу, если находит разделитель ":"
-            self.onCommand(messageType, messageBody)                               # запускает функцию OnCommand и передает в нее аргументами тип сообщения и тело сообщения
+            if not self.onCommand(messageType, messageBody):                               # запускает функцию OnCommand и передает в нее аргументами тип сообщения и тело сообщения
+                return False
+        return True
 
     def onCommand(self, command, data) -> bool:
         self.logger.info("processing command[{}], data[{}]".format(command, data)) # запускает инфо логера который распечатывает какие аргументы были переданы в функцию
@@ -38,9 +40,22 @@ class CommandProcessor:                                                         
             self.clients[self.clientName] = self                                   # создает новый ключ в словаре clients  равный clientName
         elif command == b'msg':                                                    # если в байтах сообщение
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))  # запускается инфологер с содержанием имени клиента и сообщения
+        elif command == b'msg-to-client':
+            toClient, ignored, messageBody = data.partition(b':')
+            self.logger.info("from [{}] to [{}] message [{}]".format(self.clientName, toClient, messageBody))
+            if toClient in self.clients:
+                self.clients[toClient].sendMessageToClient(self.clientName, messageBody)
+            else:
+                self.logger.info("no client [{}] on server".format(toClient))
+        elif command == b'exit':
+            return False
         return True                                                                # всегда возвращает True
 
-                                                                                   # Multithreaded Python server : TCP Serverclass ClientThread(Thread):                                                        # создан новый тип ClientThread принимающий параметр Thread
+    def sendMessageToClient(self, fromClient:str, message:str):
+        self.conn.sendall(b'msg:' + bytes(fromClient) + b":" + bytes(message) + b';')
+
+                                                                                   # Multithreaded Python server : TCP Server
+class ClientThread(Thread):                                                        # создан новый тип ClientThread принимающий параметр Thread
     logger = Logging.getLogger("clientThread")                                     # создает логера 'ClientThread'
 
     def __init__(self, processor: CommandProcessor, conn: socket):
@@ -93,3 +108,6 @@ for t in threads:
     t.join()                                                                       # соединяет все элементы в массиве threads
 
 mainLogger.info("SERVER: Exit")                                                    # запусается главный инфо логер
+
+# main ---------|------------------------------------
+#                t-127.128.1.1-----------------------
