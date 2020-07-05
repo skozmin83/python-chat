@@ -37,22 +37,24 @@ class CommandProcessor:                                                         
         self.logger.info("processing command[{}], data[{}]".format(command, data)) # запускает инфо логера который распечатывает какие аргументы были переданы в функцию
         if command == b'name':                                                     # если значение байтов = 'name'
             self.clientName = str(data)                                            # присваивает clientName = переводу в строку параметра data
-            self.clients[self.clientName] = self                                   # создает новый ключ в словаре clients  равный clientName
+            self.clients[self.clientName] = self.conn                                # создает новый ключ в словаре clients  равный clientName
         elif command == b'msg':                                                    # если в байтах сообщение
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))  # запускается инфологер с содержанием имени клиента и сообщения
         elif command == b'msg-to-client':
             toClient, ignored, messageBody = data.partition(b':')
             self.logger.info("from [{}] to [{}] message [{}]".format(self.clientName, toClient, messageBody))
-            if toClient in self.clients:
-                self.clients[toClient].sendMessageToClient(self.clientName, messageBody)
+            if toClient in self.clients.key:
+                toClientSocket = self.clients[toClient]
+                # self.clients[toClient].sendMessageToClient(self.clientName, messageBody)
+                send = self.sendMessageToClient(toClientSocket,self.clientName, messageBody)
             else:
                 self.logger.info("no client [{}] on server".format(toClient))
         elif command == b'exit':
             return False
         return True                                                                # всегда возвращает True
 
-    def sendMessageToClient(self, fromClient:str, message:str):
-        self.conn.sendall(b'msg:' + bytes(fromClient) + b":" + bytes(message) + b';')
+    def sendMessageToClient(self,toClientSocket, fromClient:str, message:str):
+        toClientSocket.sendall(b'msg:' + bytes(fromClient) + b":" + bytes(message) + b';')
 
                                                                                    # Multithreaded Python server : TCP Server
 class ClientThread(Thread):                                                        # создан новый тип ClientThread принимающий параметр Thread
