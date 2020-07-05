@@ -22,7 +22,7 @@ class CommandProcessor:                                                         
         self.logger.info("finish processing commands")
         self.clients[self.clientName] = None
 
-    def processNewChunk(self, chunk) -> bool:                                      # этот метод принимает новый кусок данных
+    def processNewChunk(self, chunk:bytes) -> bool:                                      # этот метод принимает новый кусок данных
         self.buffer += chunk                                                       # добавляет их к данным буфера
         while True:
             if b';' not in self.buffer:                                            # если байтов ; нет в буфере, выход из цикла
@@ -33,28 +33,26 @@ class CommandProcessor:                                                         
                 return False
         return True
 
-    def onCommand(self, command, data) -> bool:
+    def onCommand(self, command:bytes, data:bytes) -> bool:
         self.logger.info("processing command[{}], data[{}]".format(command, data)) # запускает инфо логера который распечатывает какие аргументы были переданы в функцию
         if command == b'name':                                                     # если значение байтов = 'name'
-            self.clientName = str(data)                                            # присваивает clientName = переводу в строку параметра data
-            self.clients[self.clientName] = self.conn                                # создает новый ключ в словаре clients  равный clientName
+            self.clientName = data                                                 # присваивает clientName = переводу в строку параметра data
+            self.clients[self.clientName] = self                                   # создает новый ключ в словаре clients  равный clientName
         elif command == b'msg':                                                    # если в байтах сообщение
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))  # запускается инфологер с содержанием имени клиента и сообщения
         elif command == b'msg-to-client':
             toClient, ignored, messageBody = data.partition(b':')
             self.logger.info("from [{}] to [{}] message [{}]".format(self.clientName, toClient, messageBody))
-            if toClient in self.clients.key:
-                toClientSocket = self.clients[toClient]
-                # self.clients[toClient].sendMessageToClient(self.clientName, messageBody)
-                send = self.sendMessageToClient(toClientSocket,self.clientName, messageBody)
+            if toClient in self.clients:
+                self.clients[toClient].sendMessageToClient(self.clientName, messageBody)
             else:
                 self.logger.info("no client [{}] on server".format(toClient))
         elif command == b'exit':
             return False
         return True                                                                # всегда возвращает True
 
-    def sendMessageToClient(self,toClientSocket, fromClient:str, message:str):
-        toClientSocket.sendall(b'msg:' + bytes(fromClient) + b":" + bytes(message) + b';')
+    def sendMessageToClient(self, fromClient:bytes, message:bytes):
+        self.conn.sendall(b'msg:' + fromClient + b":" + message + b';')
 
                                                                                    # Multithreaded Python server : TCP Server
 class ClientThread(Thread):                                                        # создан новый тип ClientThread принимающий параметр Thread
