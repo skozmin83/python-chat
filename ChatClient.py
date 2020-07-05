@@ -16,6 +16,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     #     b = bytes(msg, "UTF-8")
     #     s.sendall(b)
     #     counter += 1
+    adfkldsalasfldasf
 
     s.sendall(b'msg:hello from client;')
     s.sendall(b'msg-to-client:tanya:hello3;')
