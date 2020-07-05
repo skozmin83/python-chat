@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 
+import sys
 import socket
 
 HOST = '127.0.0.1'  # The server's hostname or IP address
 PORT = 12346        # The port used by the server
 
-print('Connecting client to %s:%s' % (HOST, PORT))
+if len(sys.argv) < 2:
+    print("Error! Need a client name argument!")
+    exit(15)
+
+clientName = sys.argv[1]
+
+print('Connecting client to {}:{} as client {}'.format(HOST, PORT, clientName))
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
-    s.sendall(b'name:tanya;')
+    s.sendall(b'name:' + bytes(clientName, "UTF-8") + b';')
     s.sendall(b'msg:Hi;')
     data = s.recv(1024)
     s.listen(5)
