@@ -1,5 +1,5 @@
 class Solution:
-    def canJump(self, nums: list) -> bool:
+    def canJump2(self, nums: list) -> bool:
         rememberedNumber = nums[0]
         curIndex = 0
         lastIndex = len(nums)-1
@@ -19,6 +19,25 @@ class Solution:
                     if rememberedNumber == 0 and curIndex !=lastIndex:
                         return False
             return False
+
+    def canJump(self, nums: list) -> bool:
+        saved =0
+        lastIndex = len(nums)-1
+        if len(nums) ==1:
+            return True
+        if nums[0] == 0:
+            return False
+        for i in range(0,len(nums)):
+            if saved <= nums[i]:
+                saved = nums[i]+1
+            saved-=1
+            if saved ==0 and i != lastIndex:
+                return False
+            if i == lastIndex:
+                return True
+
+
+
 
 def test(sol, input, expect):
     ret = sol.canJump(input)
