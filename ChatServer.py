@@ -17,6 +17,14 @@ class CommandProcessor:                                                         
 
     def start(self):                                                               # этот метод запускает инфо логера
         self.logger.info("start processing commands")
+        self.clientsOnline(self.clients, self.clientName)
+
+    def clientsOnline(self, allClients: dict, clientName:bytes):
+        clients = ''
+        for key in allClients.keys():
+            clients+=str(key,'UTF-8')+' '
+        clients = bytes(clients, 'UTF-8')
+        self.conn.sendall(b'these clients are online now: ' + clients)
 
     def finish(self):                                                              # эта функция запускает инфо логера и задает значение в словаре clients по ключу clientName = None
         self.logger.info("finish processing commands")
@@ -38,7 +46,7 @@ class CommandProcessor:                                                         
         if command == b'name':                                                     # если значение байтов = 'name'
             self.clientName = data
             # присваивает clientName = переводу в строку параметра data
-            self.clients[self.clientName] = self                                   # создает новый ключ в словаре clients  равный clientName
+            self.clients[self.clientName] = self # создает новый ключ в словаре clients  равный clientName
         elif command == b'msg':                                                    # если в байтах сообщение
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))  # запускается инфологер с содержанием имени клиента и сообщения
         elif command == b'msg-to-client':
@@ -86,7 +94,8 @@ class ClientThread(Thread):                                                     
 BUFFER_SIZE = 1024                                                                 # Usually 1024, but we need quick response
 
 HOST = '127.0.0.1'                                                                 # Standard loopback interface address (localhost)
-PORT = 12346                                                                       # Port to listen on (non-privileged ports are > 1023)
+PORT = 12346
+# Port to listen on (non-privileged ports are > 1023)
 
 mainLogger = Logging.getLogger("main")
 
