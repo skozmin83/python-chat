@@ -36,7 +36,8 @@ class CommandProcessor:                                                         
     def onCommand(self, command:bytes, data:bytes) -> bool:
         self.logger.info("processing command[{}], data[{}]".format(command, data)) # запускает инфо логера который распечатывает какие аргументы были переданы в функцию
         if command == b'name':                                                     # если значение байтов = 'name'
-            self.clientName = data                                                 # присваивает clientName = переводу в строку параметра data
+            self.clientName = data
+            # присваивает clientName = переводу в строку параметра data
             self.clients[self.clientName] = self                                   # создает новый ключ в словаре clients  равный clientName
         elif command == b'msg':                                                    # если в байтах сообщение
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))  # запускается инфологер с содержанием имени клиента и сообщения
