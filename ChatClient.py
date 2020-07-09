@@ -14,27 +14,42 @@ name = sys.argv[1]
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
     data = s.recv(1024)
-    logger.info(str(data))
-    msg = input('enter your message please')
-    msg_to = input('if you want send it as private message, add name of the person, else press Enter')
-    logger.info('Connecting client to {}:{} as client {} (talking to {})'.format(HOST, PORT, name, msg_to))
+    data = data.decode('UTF-8')
+    logger.info(data)
+    toClient =''
+    messageBody =''
+    msg = input('enter name: message')
+    if ':' in msg:
+        toClient, ignored, messageBody = msg.partition(':')
+    else:
+        messageBody = msg
+    if toClient =='':
+        logger.info('Connecting client to {}:{} as client {} (talking to everyone)'.format(HOST, PORT, name))
+    else:
+        logger.info('Connecting client to {}:{} as client {} (talking to {})'.format(HOST, PORT, name, toClient))
     s.sendall(b'name:' +bytes(name,'UTF-8')+ b';')
+    # receivedData = s.recv(1024)
+    # receivedData = receivedData.decode('UTF-8')
+    # logger.info('Received:' + receivedData)
     while True:
-        if msg_to !='' and msg != '':
-            s.sendall(b'msg-to-client:'+bytes(msg_to,'UTF-8')+ b':' + bytes(msg, 'UTF-8') + b';')
-            msg =''
-        elif msg_to =='' and msg !='':
-            s.sendall(b'msg:' + bytes(msg, 'UTF-8') + b';')
-            msg_to=''
-        elif msg == '' and msg_to !='':
-            msg = input('enter your message please')
-            msg_to = input('if you want send it as private message, add name of the person, else press Enter')
-            continue
-        elif msg =='' and msg_to =='':
+        if messageBody !='' and toClient !='':
+            s.sendall(b'msg-to-client:'+bytes(toClient,'UTF-8')+ b':' + bytes(messageBody, 'UTF-8') + b';')
+            messageBody =''
+            toClient =''
+            msg = input('enter name: message')
+        elif messageBody !='' and toClient =='':
+            s.sendall(b'msg:' + bytes(messageBody, 'UTF-8') + b';')
+            msg = input('enter name: message')
+        elif messageBody == '' and toClient == '':
             break
+        if ':' in msg:
+            toClient, ignored, messageBody = msg.partition(':')
+        else:
+            messageBody = msg
     while True:
         receivedData = s.recv(1024)
-        logger.info('Received:' + str(receivedData))
+        receivedData = receivedData.decode('UTF-8')
+        logger.info('Received: ' + receivedData)
         if not receivedData:
             break
 logger.info('Finish client on %s:%s' % (HOST, PORT))

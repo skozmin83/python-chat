@@ -23,8 +23,11 @@ class CommandProcessor:                                                         
         clients = ''
         for key in allClients.keys():
             clients+=str(key,'UTF-8')+' '
-        clients = bytes(clients, 'UTF-8')
-        self.conn.sendall(b'these clients are online now: ' + clients)
+        if clients =='':
+            self.conn.sendall(b'nobody here')
+        else:
+            clients = bytes(clients, 'UTF-8')
+            self.conn.sendall(b'these clients are online now: ' + clients)
 
     def finish(self):                                                              # эта функция запускает инфо логера и задает значение в словаре clients по ключу clientName = None
         self.logger.info("finish processing commands")
