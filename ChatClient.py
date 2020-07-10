@@ -14,20 +14,18 @@ name = sys.argv[1]
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     logger.info('socket start')
     s.connect((HOST, PORT))
+    s.sendall(b'name:' +bytes(name,'UTF-8')+ b';')
     class newThread (Thread):
         def __init__(self):
             Thread.__init__(self, name='listener thread')
 
         def run(self):
-            logger.info('start listen')
             while True:
                 receivedData = s.recv(1024)
                 receivedData = receivedData.decode('UTF-8')
                 logger.info('Received: ' + receivedData)
-    logger.info('new thread created')
     listenThread = newThread()
     listenThread.start()
-
     toClient =''
     messageBody =''
     msg = input('enter name: message'+ '\n')
@@ -39,7 +37,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         logger.info('Connecting client to {}:{} as client {} (talking to everyone)'.format(HOST, PORT, name))
     else:
         logger.info('Connecting client to {}:{} as client {} (talking to {})'.format(HOST, PORT, name, toClient))
-    s.sendall(b'name:' +bytes(name,'UTF-8')+ b';')
     while True:
         if messageBody !='' and toClient !='':
             s.sendall(b'msg-to-client:'+bytes(toClient,'UTF-8')+ b':' + bytes(messageBody, 'UTF-8') + b';')
