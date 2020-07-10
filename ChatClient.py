@@ -2,7 +2,7 @@
 import sys
 import socket
 import Logging
-# import ChatServer
+from threading import Thread
 logger = Logging.getLogger('error')
 HOST = '127.0.0.1'  # The server's hostname or IP address
 PORT = 12346        # The port used by the server
@@ -12,13 +12,25 @@ if len(sys.argv)<2:
     exit(14)
 name = sys.argv[1]
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    logger.info('socket start')
     s.connect((HOST, PORT))
-    data = s.recv(1024)
-    data = data.decode('UTF-8')
-    logger.info(data)
+    class newThread (Thread):
+        def __init__(self):
+            Thread.__init__(self, name='listener thread')
+
+        def run(self):
+            logger.info('start listen')
+            while True:
+                receivedData = s.recv(1024)
+                receivedData = receivedData.decode('UTF-8')
+                logger.info('Received: ' + receivedData)
+    logger.info('new thread created')
+    listenThread = newThread()
+    listenThread.start()
+
     toClient =''
     messageBody =''
-    msg = input('enter name: message')
+    msg = input('enter name: message'+ '\n')
     if ':' in msg:
         toClient, ignored, messageBody = msg.partition(':')
     else:
@@ -28,9 +40,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     else:
         logger.info('Connecting client to {}:{} as client {} (talking to {})'.format(HOST, PORT, name, toClient))
     s.sendall(b'name:' +bytes(name,'UTF-8')+ b';')
-    # receivedData = s.recv(1024)
-    # receivedData = receivedData.decode('UTF-8')
-    # logger.info('Received:' + receivedData)
     while True:
         if messageBody !='' and toClient !='':
             s.sendall(b'msg-to-client:'+bytes(toClient,'UTF-8')+ b':' + bytes(messageBody, 'UTF-8') + b';')
@@ -46,11 +55,5 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             toClient, ignored, messageBody = msg.partition(':')
         else:
             messageBody = msg
-    while True:
-        receivedData = s.recv(1024)
-        receivedData = receivedData.decode('UTF-8')
-        logger.info('Received: ' + receivedData)
-        if not receivedData:
-            break
 logger.info('Finish client on %s:%s' % (HOST, PORT))
 
