@@ -19,8 +19,8 @@ def getFileHandler():
 def getLogger(logger_name=""):
    logger = logging.getLogger(logger_name)
    logger.setLevel(logging.DEBUG) # better to have too much log than not enough
-   logger.addHandler(getConsoleHandler())
-   # logger.addHandler(get_file_handler())
+   # logger.addHandler(getConsoleHandler())
+   logger.addHandler(getFileHandler())
    # with this pattern, it's rarely necessary to propagate the error up to parent
    logger.propagate = False
    return logger
