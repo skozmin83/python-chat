@@ -19,13 +19,15 @@ class CommandProcessor:                                                         
         self.logger.info("start processing commands")
         self.clientsOnline(self.clients)
 
-    def clientLeftServer(self, clientName:bytes,allClients: dict):
-        self.logger.info('client left')
+    def clientEnteredonServer (self, clientName:bytes, allClients: dict):
         for key in allClients.keys():
             if key != bytes(clientName):
-                self.logger.info(str(clientName))
-                self.logger.info(str(allClients))
-                allClients[key].conn.sendall(clientName + b' left our Server')
+                allClients[key].conn.sendall(clientName +b' entered on server')
+
+    def clientLeftServer(self, clientName:bytes,allClients: dict):
+        for key in allClients.keys():
+            if key != bytes(clientName):
+                allClients[key].conn.sendall(clientName + b' left our server')
 
     def clientsOnline(self, allClients: dict):
         clients = ''
@@ -59,6 +61,7 @@ class CommandProcessor:                                                         
             self.clientName = data
             # присваивает clientName = переводу в строку параметра data
             self.clients[self.clientName] = self # создает новый ключ в словаре clients  равный clientName
+            self.clientEnteredonServer(self.clientName,self.clients)
         elif command == b'msg':                                                    # если в байтах сообщение
             messageBody = data # запускается инфологер с содержанием имени клиента и сообщения
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))
