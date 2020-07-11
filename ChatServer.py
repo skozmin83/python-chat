@@ -17,9 +17,17 @@ class CommandProcessor:                                                         
 
     def start(self):                                                               # этот метод запускает инфо логера
         self.logger.info("start processing commands")
-        self.clientsOnline(self.clients, self.clientName)
+        self.clientsOnline(self.clients)
 
-    def clientsOnline(self, allClients: dict, clientName:bytes):
+    def clientLeftServer(self, clientName:bytes,allClients: dict):
+        self.logger.info('client left')
+        for key in allClients.keys():
+            if key != bytes(clientName):
+                self.logger.info(str(clientName))
+                self.logger.info(str(allClients))
+                allClients[key].conn.sendall(clientName + b' left our Server')
+
+    def clientsOnline(self, allClients: dict):
         clients = ''
         for key in allClients.keys():
             clients+=str(key,'UTF-8')+' '
@@ -31,6 +39,7 @@ class CommandProcessor:                                                         
 
     def finish(self):                                                              # эта функция запускает инфо логера и задает значение в словаре clients по ключу clientName = None
         self.logger.info("finish processing commands")
+        self.clientLeftServer(self.clientName, self.clients)
         self.clients[self.clientName] = None
 
     def processNewChunk(self, chunk:bytes) -> bool:                                      # этот метод принимает новый кусок данных
@@ -51,7 +60,9 @@ class CommandProcessor:                                                         
             # присваивает clientName = переводу в строку параметра data
             self.clients[self.clientName] = self # создает новый ключ в словаре clients  равный clientName
         elif command == b'msg':                                                    # если в байтах сообщение
-            self.logger.info("user [{}] says [{}]".format(self.clientName, data))  # запускается инфологер с содержанием имени клиента и сообщения
+            messageBody = data # запускается инфологер с содержанием имени клиента и сообщения
+            self.logger.info("user [{}] says [{}]".format(self.clientName, data))
+            self.sendToEveryone(self.clientName,messageBody,self.clients)
         elif command == b'msg-to-client':
             toClient, ignored, messageBody = data.partition(b':')
             self.logger.info("from [{}] to [{}] message [{}]".format(self.clientName, toClient, messageBody))
@@ -64,8 +75,12 @@ class CommandProcessor:                                                         
         return True                                                                # всегда возвращает True
 
     def sendMessageToClient(self, fromClient:bytes, message:bytes):
-        self.conn.sendall(b'msg:' + fromClient + b":" + message + b';')
+        self.conn.sendall(b'msg:' + fromClient + b":" + b' ' + message)
 
+    def sendToEveryone(self,fromClient:bytes, message:bytes, allClients: dict):
+        for key in allClients.keys():
+            if key != bytes(fromClient):
+                allClients[key].conn.sendall(fromClient + b':' +b' ' + message)
                                                                                    # Multithreaded Python server : TCP Server
 class ClientThread(Thread):                                                        # создан новый тип ClientThread принимающий параметр Thread
     logger = Logging.getLogger("clientThread")                                     # создает логера 'ClientThread'
