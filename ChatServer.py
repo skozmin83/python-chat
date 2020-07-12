@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 import socket
 import Logging
-from threading import Thread                                                       # импортируем Thread которая позволит создавать разные потоки, если это не запускать, то приложения получаются однопоточные
+import ClientStatus
+from threading import Thread
 
 
-class CommandProcessor:                                                            # создан тип Command Processor
+class SingleClientCommandProcessor:
     logger = Logging.getLogger("processor")
 
-    def __init__(self, clients: map, conn:socket, ip, port):                       # задаем параметры класса
+    def __init__(self, clients: dict, conn: socket, ip, port):
         self.conn = conn
         self.clients = clients
         self.ip = ip
@@ -15,57 +16,43 @@ class CommandProcessor:                                                         
         self.clientName = None
         self.buffer = b''
 
-    def start(self):                                                               # этот метод запускает инфо логера
+    def start(self):
         self.logger.info("start processing commands")
-        self.clientsOnline(self.clients)
+        clientsMsg = b'clients:'
+        for client in self.clients.keys():
+            clientsMsg += client + b','
+        clientsMsg += b";"
+        self.conn.sendall(clientsMsg)
 
-    def clientEnteredonServer (self, clientName:bytes, allClients: dict):
-        for key in allClients.keys():
-            if key != bytes(clientName):
-                allClients[key].conn.sendall(clientName +b' entered on server')
-
-    def clientLeftServer(self, clientName:bytes,allClients: dict):
-        for key in allClients.keys():
-            if key != bytes(clientName):
-                allClients[key].conn.sendall(clientName + b' left our server')
-
-    def clientsOnline(self, allClients: dict):
-        clients = ''
-        for key in allClients.keys():
-            clients+=str(key,'UTF-8')+' '
-        if clients =='':
-            self.conn.sendall(b'nobody here')
-        else:
-            clients = bytes(clients, 'UTF-8')
-            self.conn.sendall(b'these clients are online now: ' + clients)
-
-    def finish(self):                                                              # эта функция запускает инфо логера и задает значение в словаре clients по ключу clientName = None
+    def finish(self):
         self.logger.info("finish processing commands")
-        self.clientLeftServer(self.clientName, self.clients)
+        for processor in self.clients.values():
+            processor.statusUpdate(self.clientName, ClientStatus.ClientStatus.OFFLINE)
         self.clients[self.clientName] = None
 
-    def processNewChunk(self, chunk:bytes) -> bool:                                      # этот метод принимает новый кусок данных
-        self.buffer += chunk                                                       # добавляет их к данным буфера
+    def processNewChunk(self, chunk: bytes) -> bool:
+        self.buffer += chunk
         while True:
-            if b';' not in self.buffer:                                            # если байтов ; нет в буфере, выход из цикла
+            if b';' not in self.buffer:
                 break
-            message, ignored, self.buffer = self.buffer.partition(b';')            # разделяет содержимое в буфере на части и присваивает их значения картежу, если находит разделитель ";"
-            messageType, ignored, messageBody = message.partition(b':')            # разделяет содержимое в сообщении на части и присваивает их значения картежу, если находит разделитель ":"
-            if not self.onCommand(messageType, messageBody):                               # запускает функцию OnCommand и передает в нее аргументами тип сообщения и тело сообщения
+            message, ignored, self.buffer = self.buffer.partition(b';')
+            messageType, ignored, messageBody = message.partition(b':')
+            if not self.onCommand(messageType, messageBody):
                 return False
         return True
 
-    def onCommand(self, command:bytes, data:bytes) -> bool:
-        self.logger.info("processing command[{}], data[{}]".format(command, data)) # запускает инфо логера который распечатывает какие аргументы были переданы в функцию
-        if command == b'name':                                                     # если значение байтов = 'name'
+    def onCommand(self, command: bytes, data: bytes) -> bool:
+        self.logger.info("processing command[{}], data[{}]".format(command, data))
+        if command == b'name':
             self.clientName = data
-            # присваивает clientName = переводу в строку параметра data
-            self.clients[self.clientName] = self # создает новый ключ в словаре clients  равный clientName
-            self.clientEnteredonServer(self.clientName,self.clients)
-        elif command == b'msg':                                                    # если в байтах сообщение
-            messageBody = data # запускается инфологер с содержанием имени клиента и сообщения
+            self.clients[self.clientName] = self
+            for processor in self.clients.values():
+                processor.statusUpdate(self.clientName, ClientStatus.ClientStatus.ONLINE)
+        elif command == b'msg':
+            messageBody = data
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))
-            self.sendToEveryone(self.clientName,messageBody,self.clients)
+            for processor in self.clients.values():
+                processor.sendMessageToClient(self.clientName, messageBody)
         elif command == b'msg-to-client':
             toClient, ignored, messageBody = data.partition(b':')
             self.logger.info("from [{}] to [{}] message [{}]".format(self.clientName, toClient, messageBody))
@@ -75,48 +62,48 @@ class CommandProcessor:                                                         
                 self.logger.info("no client [{}] on server".format(toClient))
         elif command == b'exit':
             return False
-        return True                                                                # всегда возвращает True
+        return True
 
-    def sendMessageToClient(self, fromClient:bytes, message:bytes):
-        self.conn.sendall(b'msg:' + fromClient + b":" + b' ' + message)
+    def statusUpdate(self, clientName: bytes, newStatus: ClientStatus.ClientStatus):
+        if clientName != bytes(self.clientName):
+            self.conn.sendall(b'status-update:' + clientName + b":" + bytes(newStatus.name, "UTF-8"))
 
-    def sendToEveryone(self,fromClient:bytes, message:bytes, allClients: dict):
-        for key in allClients.keys():
-            if key != bytes(fromClient):
-                allClients[key].conn.sendall(fromClient + b':' +b' ' + message)
-                                                                                   # Multithreaded Python server : TCP Server
-class ClientThread(Thread):                                                        # создан новый тип ClientThread принимающий параметр Thread
-    logger = Logging.getLogger("clientThread")                                     # создает логера 'ClientThread'
+    def sendMessageToClient(self, fromClient: bytes, message: bytes):
+        if self.clientName != fromClient:
+            self.conn.sendall(b'msg:' + fromClient + b":" + b' ' + message)
 
-    def __init__(self, processor: CommandProcessor, conn: socket):
-        Thread.__init__(self, name="t-{}:{}".format(ip, port), daemon=True )       # инициируется новый поток, задается его имя, daemon означает что поток будет завершен сразу после выхода из программы
+
+class ClientThread(Thread):
+    logger = Logging.getLogger("clientThread")
+
+    def __init__(self, processor: SingleClientCommandProcessor, conn: socket):
+        Thread.__init__(self, name="t-{}:{}".format(ip, port), daemon=True)
         self.processor = processor
         self.conn = conn
 
-    def run(self):                                                                 # если запустить напрямую то будет выполнятся в том же потоке что и основной код
+    def run(self):
         try:
-            self.processor.start()                                                 #запускает метод start у объекта типа CommandProcessor, который запустит инфо логера и выведет сообщение о начале обработки команд
-            with self.conn:                                                        # с переданным сокетом
+            self.processor.start()
+            with self.conn:
                 while True:
-                    data = self.conn.recv(1024)                                    # в бесконечном цикле принимаем по 1кб данных от клиента
-                    if not data:                                                   # если данных нет, ничего не возвращает
+                    data = self.conn.recv(1024)
+                    if not data:
                         return
-                    if not self.processor.processNewChunk(data):                   # если нет новых данных, ничего не возвращает
+                    if not self.processor.processNewChunk(data):
                         return
-        except ConnectionResetError:                                               # вместо ошибки сброса соединения запускает инфо логера
+        except ConnectionResetError:
             self.logger.info("client closed connection")
-        except:                                                                    # вместо остальных ошибок запускает инфо логера + показывает информацию об ошибке
+        except:
             self.logger.info("unknown error", exc_info=True)
-        finally:                                                                   # в концезапускает инфо логера выходим из нити и запускает метод finish у объекта типа CommandProcessor
+        finally:
             self.logger.info("exiting thread")
-            self.processor.finish()                                                # метод finish запустит инфо логера и обнулит значение по ключу ClientName
+            self.processor.finish()
 
 
-BUFFER_SIZE = 1024                                                                 # Usually 1024, but we need quick response
+BUFFER_SIZE = 1024
 
-HOST = '127.0.0.1'                                                                 # Standard loopback interface address (localhost)
+HOST = '127.0.0.1'
 PORT = 12346
-# Port to listen on (non-privileged ports are > 1023)
 
 mainLogger = Logging.getLogger("main")
 
@@ -128,17 +115,14 @@ allClients = {}
 
 mainLogger.info("SERVER: Waiting for connections from TCP clients on {}:{} ...".format(HOST, PORT))
 while True:
-    tcpServer.listen()                                                             # у tcp Server'a запускается режим прослушивания с неограниченным количеством подключений
-    (connection, (ip, port)) = tcpServer.accept()                                  # задано имя нового сокета и адрес клиента
-    processor = CommandProcessor(allClients, connection, ip, port)                 # создается новый объект типа CommandProcessor
-    newthread = ClientThread(processor, connection)                                # создается новый объект типа ClientThread
-    newthread.start()                                                              # запускается объект класса ClientThread который после запуска вызовет содержание функции run() в отдельном потоке
-    threads.append(newthread)                                                      # в список добавляется объект класса ClientThread
+    tcpServer.listen()
+    (connection, (ip, port)) = tcpServer.accept()
+    processor = SingleClientCommandProcessor(allClients, connection, ip, port)
+    newthread = ClientThread(processor, connection)
+    newthread.start()
+    threads.append(newthread)
 
 for t in threads:
-    t.join()                                                                       # соединяет все элементы в массиве threads
+    t.join()
 
-mainLogger.info("SERVER: Exit")                                                    # запусается главный инфо логер
-
-# main ---------|------------------------------------
-#                t-127.128.1.1-----------------------
+mainLogger.info("SERVER: Exit")
