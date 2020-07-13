@@ -20,7 +20,10 @@ class SingleClientCommandProcessor:
         self.logger.info("start processing commands")
         clientsMsg = b'clients:'
         for client in self.clients.keys():
-            clientsMsg += client + b','
+            if client == str:
+                clientsMsg += bytes(client,'UTF-8') + b' '
+            else:
+                clientsMsg += client + b' '
         clientsMsg += b";"
         self.conn.sendall(clientsMsg)
 
@@ -66,11 +69,11 @@ class SingleClientCommandProcessor:
 
     def statusUpdate(self, clientName: bytes, newStatus: ClientStatus.ClientStatus):
         if clientName != bytes(self.clientName):
-            self.conn.sendall(b'status-update:' + clientName + b":" + bytes(newStatus.name, "UTF-8"))
+            self.conn.sendall(b'status-update:' + clientName + bytes(newStatus.name, "UTF-8") +b';')
 
     def sendMessageToClient(self, fromClient: bytes, message: bytes):
         if self.clientName != fromClient:
-            self.conn.sendall(b'msg:' + fromClient + b":" + b' ' + message)
+            self.conn.sendall(b'msg:' + fromClient + b":" + b' ' + message+ b';')
 
 
 class ClientThread(Thread):

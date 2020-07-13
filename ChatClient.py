@@ -3,7 +3,8 @@ import sys
 import socket
 import Logging
 import ClientStatus
-from threading import Thread
+import time
+from threading import Event, Thread
 
 logger = Logging.getLogger('client')
 chatLogger = Logging.getChatLogger('chat')
@@ -15,28 +16,66 @@ if len(sys.argv) < 2:
     exit(14)
 name = sys.argv[1]
 
-
 class ListenerThread(Thread):
     def __init__(self):
         Thread.__init__(self, name='listener thread', daemon=True)
+        self.buffer = b''
 
     def run(self):
-        while True:
+        while not event.isSet():
+            if event.isSet():
+                break
+        while event.isSet():
             receivedData = s.recv(1024)
-            receivedData = receivedData.decode('UTF-8')
-            # parse commands from server...
-            chatLogger.info(receivedData)
+            if receivedData:
+                chatLogger.info(receivedData.decode('UTF-8'))
+                event.clear()
+                self.clientNewChunk(receivedData)
+    def clientNewChunk (self, chunk: bytes):
+        self.buffer += chunk
+        while True:
+            if b';' not in self.buffer:
+                break
+            message, ignored, self.buffer = self.buffer.partition(b';')
+            messageType, ignored, messageBody = message.partition(b':')
+            if not self.onCommandClient(messageType, messageBody):
+                return False
+        return True
 
-
+    def onCommandClient(self, messageType: bytes, messageBody: bytes) -> bool:
+        if messageType == b'clients':
+            messageBody = messageBody.decode('UTF-8')
+            clientsOnline = messageBody.split(' ')
+            if clientsOnline[0] !='':
+                chatLogger.info('these clients are online now:')
+            else:
+                chatLogger.info('nobody here')
+            for client in clientsOnline:
+                if client !='':
+                    chatLogger.info(client)
+        elif messageType == b'status-update':
+            messageBody = messageBody.decode('UTF-8')
+            chatLogger.info(messageBody)
+        elif messageType == b'msg':
+            messageBody = messageBody.decode('UTF-8')
+            chatLogger.info(messageBody)
+        # event.set()
+        return True
+event = Event()
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    event.set()
     s.connect((HOST, PORT))
     s.sendall(b'name:' + bytes(name, 'UTF-8') + b';')
-
     listenThread = ListenerThread()
     listenThread.start()
+    while not event.isSet():
+        chatLogger.info('waiting')
+        if event.isSet():
+            break
     toClient = ''
-    while True:
-        msg = input('enter name: message' + '\n')
+    chatLogger.info('If you want send message to someone enter "name: message", if you want send message to everyone enter message without name')
+    while event.isSet():
+        msg = input('type something...' + '\n')
         if ':' in msg:
             toClient, ignored, messageBody = msg.partition(':')
             s.sendall(b'msg-to-client:' + bytes(toClient, 'UTF-8') + b':' + bytes(messageBody, 'UTF-8') + b';')

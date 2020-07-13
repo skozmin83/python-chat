@@ -1,23 +1,24 @@
 class Solution:
     def jump(self, nums:list) -> int:
-        curIndex =0
+        countOfsteps = 0
+        saved = 0
         lastIndex = len(nums)-1
-        remainder = nums[curIndex]
-        minCountOfJump = 0
-        return (jumpRecursion(nums,curIndex,remainder,lastIndex,minCountOfJump))
 
-def jumpRecursion(nums:list, curIndex: int, remainder: int, lastIndex: int, minCountOfJump:int):
-    minCountOfJump+=1
-    if remainder>0:
-        remainder-=1
-        if curIndex < lastIndex:
-            curIndex+=1
-            remainder = nums[curIndex]
-            if remainder+curIndex<lastIndex:
-                minCountOfJump = jumpRecursion(nums,curIndex,remainder,lastIndex,minCountOfJump)
-            else:
-                minCountOfJump+=1
-    return minCountOfJump
+        if len(nums) ==1 or nums[0] ==0:
+            return 0
+        for i in range(0,len(nums)):
+            saved-=1
+            if saved <= 0:
+                saved = nums[i]
+                countOfsteps+=1
+            if saved ==0 and i != lastIndex:
+                return 0
+            if i == lastIndex:
+                return countOfsteps
+        return countOfsteps
+
+
+
 
 def test(sol, input, expect):
     ret = sol.jump(input)
@@ -25,3 +26,8 @@ def test(sol, input, expect):
 
 sol = Solution()
 test(sol,[2,3,1,1,4], 2)
+# test(sol,[1,2],1)
+# test(sol,[2,1],1)
+# test(sol,[1,2,3],2)
+# test(sol,[2,3,1],1)
+# test(sol,[1,2,3,4],2)
