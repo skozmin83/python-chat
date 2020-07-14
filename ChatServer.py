@@ -29,8 +29,7 @@ class SingleClientCommandProcessor:
 
     def finish(self):
         self.logger.info("finish processing commands")
-        for processor in self.clients.values():
-            processor.statusUpdate(self.clientName, ClientStatus.ClientStatus.OFFLINE)
+        self.statusUpdate(self.clientName,ClientStatus.ClientStatus.OFFLINE.value)
         self.clients[self.clientName] = None
 
     def processNewChunk(self, chunk: bytes) -> bool:
@@ -49,8 +48,7 @@ class SingleClientCommandProcessor:
         if command == b'name':
             self.clientName = data
             self.clients[self.clientName] = self
-            for processor in self.clients.values():
-                processor.statusUpdate(self.clientName, ClientStatus.ClientStatus.ONLINE)
+            self.statusUpdate(self.clientName,ClientStatus.ClientStatus.ONLINE.value)
         elif command == b'msg':
             messageBody = data
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))
@@ -67,9 +65,13 @@ class SingleClientCommandProcessor:
             return False
         return True
 
-    def statusUpdate(self, clientName: bytes, newStatus: ClientStatus.ClientStatus):
-        if clientName != bytes(self.clientName):
-            self.conn.sendall(b'status-update:' + clientName + bytes(newStatus.name, "UTF-8") +b';')
+    def statusUpdate(self, fromClient, newStatus: ClientStatus):
+        for processor in self.clients.values():
+            processor.sendStatusToClient(fromClient,newStatus)
+
+    def sendStatusToClient(self, fromClient: bytes, Status: str):
+        if self.clientName != fromClient:
+            self.conn.sendall(b'status-update:' + fromClient + bytes(Status,'UTF-8') +b';')
 
     def sendMessageToClient(self, fromClient: bytes, message: bytes):
         if self.clientName != fromClient:

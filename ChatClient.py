@@ -22,15 +22,14 @@ class ListenerThread(Thread):
         self.buffer = b''
 
     def run(self):
-        while not event.isSet():
-            if event.isSet():
-                break
-        while event.isSet():
-            receivedData = s.recv(1024)
-            if receivedData:
-                chatLogger.info(receivedData.decode('UTF-8'))
-                event.clear()
-                self.clientNewChunk(receivedData)
+        try:
+            while True:
+                receivedData = s.recv(1024)
+                if receivedData:
+                    self.clientNewChunk(receivedData)
+        except:
+            logger.info('error', exc_info=True)
+
     def clientNewChunk (self, chunk: bytes):
         self.buffer += chunk
         while True:
@@ -59,7 +58,6 @@ class ListenerThread(Thread):
         elif messageType == b'msg':
             messageBody = messageBody.decode('UTF-8')
             chatLogger.info(messageBody)
-        # event.set()
         return True
 event = Event()
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -68,14 +66,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.sendall(b'name:' + bytes(name, 'UTF-8') + b';')
     listenThread = ListenerThread()
     listenThread.start()
-    while not event.isSet():
-        chatLogger.info('waiting')
-        if event.isSet():
-            break
     toClient = ''
-    chatLogger.info('If you want send message to someone enter "name: message", if you want send message to everyone enter message without name')
-    while event.isSet():
-        msg = input('type something...' + '\n')
+    chatLogger.info('If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
+    while True:
+        msg = input('')
         if ':' in msg:
             toClient, ignored, messageBody = msg.partition(':')
             s.sendall(b'msg-to-client:' + bytes(toClient, 'UTF-8') + b':' + bytes(messageBody, 'UTF-8') + b';')
