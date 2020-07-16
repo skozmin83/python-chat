@@ -67,11 +67,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     listenThread = ListenerThread()
     listenThread.start()
     toClient = ''
-    chatLogger.info('If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
+    chatLogger.info('If you want send message to someone enter "name*: message" and press enter, if you want send message to everyone enter message without name')
     while True:
         msg = input('')
-        if ':' in msg:
-            toClient, ignored, messageBody = msg.partition(':')
+        if '*:' in msg:
+            toClient, ignored, messageBody = msg.partition('*:')
             s.sendall(b'msg-to-client:' + bytes(toClient, 'UTF-8') + b':' + bytes(messageBody, 'UTF-8') + b';')
         elif msg == 'exit':
             break

@@ -6,7 +6,7 @@ from threading import Thread
 
 
 class SingleClientCommandProcessor:
-    logger = Logging.getLogger("processor")
+    logger = Logging.getChatLogger("processor")
 
     def __init__(self, clients: dict, conn: socket, ip, port):
         self.conn = conn
@@ -58,16 +58,22 @@ class SingleClientCommandProcessor:
             toClient, ignored, messageBody = data.partition(b':')
             self.logger.info("from [{}] to [{}] message [{}]".format(self.clientName, toClient, messageBody))
             if toClient in self.clients:
-                self.clients[toClient].sendMessageToClient(self.clientName, messageBody)
+                if self.clients[toClient] !=None:
+                    self.clients[toClient].sendMessageToClient(self.clientName, messageBody)
+                else:
+                    toClient = toClient.decode('UTF-8')
+                    self.logger.info("client {} left our server and we can't send message to him".format(toClient))
             else:
                 self.logger.info("no client [{}] on server".format(toClient))
         elif command == b'exit':
+            del self.clients[self.clientName]
             return False
         return True
 
     def statusUpdate(self, fromClient, newStatus: ClientStatus):
         for processor in self.clients.values():
-            processor.sendStatusToClient(fromClient,newStatus)
+            if processor != None:
+                processor.sendStatusToClient(fromClient,newStatus)
 
     def sendStatusToClient(self, fromClient: bytes, Status: str):
         if self.clientName != fromClient:
@@ -79,8 +85,8 @@ class SingleClientCommandProcessor:
 
 
 class ClientThread(Thread):
-    logger = Logging.getLogger("clientThread")
-
+    logger = Logging.getChatLogger("clientThread")
+    chatLogger = Logging.getChatLogger('error')
     def __init__(self, processor: SingleClientCommandProcessor, conn: socket):
         Thread.__init__(self, name="t-{}:{}".format(ip, port), daemon=True)
         self.processor = processor
@@ -99,7 +105,7 @@ class ClientThread(Thread):
         except ConnectionResetError:
             self.logger.info("client closed connection")
         except:
-            self.logger.info("unknown error", exc_info=True)
+            self.chatLogger.info("unknown error", exc_info=True)
         finally:
             self.logger.info("exiting thread")
             self.processor.finish()
@@ -110,7 +116,7 @@ BUFFER_SIZE = 1024
 HOST = '127.0.0.1'
 PORT = 12346
 
-mainLogger = Logging.getLogger("main")
+mainLogger = Logging.getChatLogger("main")
 
 tcpServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 tcpServer.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
