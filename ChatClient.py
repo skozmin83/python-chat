@@ -67,12 +67,27 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     listenThread = ListenerThread()
     listenThread.start()
     toClient = ''
-    chatLogger.info('If you want send message to someone enter "name*: message" and press enter, if you want send message to everyone enter message without name')
+    chatLogger.info('If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
     while True:
         msg = input('')
-        if '*:' in msg:
-            toClient, ignored, messageBody = msg.partition('*:')
-            s.sendall(b'msg-to-client:' + bytes(toClient, 'UTF-8') + b':' + bytes(messageBody, 'UTF-8') + b';')
+        if ':' in msg:
+            firstValue = msg[0]
+            secondValue = msg[1]
+            try:
+                int(firstValue)
+                itIsName = False
+            except:
+                try:
+                    int(secondValue)
+                    itIsName = False
+                except:
+                    itIsName = True
+            if msg[0] == ':' or itIsName == False:
+                messageBody = msg
+                s.sendall(b'msg:' + bytes(messageBody, 'UTF-8') + b';')
+            else:
+                toClient, ignored, messageBody = msg.partition(':')
+                s.sendall(b'msg-to-client:' + bytes(toClient, 'UTF-8') + b':' + bytes(messageBody, 'UTF-8') + b';')
         elif msg == 'exit':
             break
         else:
@@ -84,3 +99,16 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             logger.info('Connecting client to {}:{} as client {} (talking to {})'.format(HOST, PORT, name, toClient))
 
     logger.info('Finish client on %s:%s' % (HOST, PORT))
+
+
+
+#
+# from PIL import Image
+#
+# image = Image.open('C:/Users/sergey/Desktop/umbrella.psd')
+# image.show()import tkinter as tk
+# from tkinter import filedialog
+# from PIL import Image
+#
+# root = tk.Tk()
+# root.withdraw()
