@@ -2,9 +2,13 @@
 import sys
 import socket
 import Logging
-import ClientStatus
-import time
+from PIL import Image
+import tkinter as tk
+from tkinter import filedialog
 from threading import Event, Thread
+import codecs
+import io
+import sys
 
 logger = Logging.getLogger('client')
 chatLogger = Logging.getChatLogger('chat')
@@ -58,6 +62,10 @@ class ListenerThread(Thread):
         elif messageType == b'msg':
             messageBody = messageBody.decode('UTF-8')
             chatLogger.info(messageBody)
+        elif messageType == b'pic':
+            messageBody = messageBody.decode('latin1')
+            img = Image.open(messageBody)
+            img.show()
         return True
 event = Event()
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -68,8 +76,22 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     listenThread.start()
     toClient = ''
     chatLogger.info('If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
+    chatLogger.info('If you want send picture to someone enter "name: picture:" and press enter, if you want send picture to everyone enter "picture:" withont name')
+    root = tk.Tk()
+    root.withdraw()
     while True:
+        i = True
         msg = input('')
+        if 'picture:' in msg:
+            # image = Image.open('C:/Users/11/Desktop/Снимок.png')
+            # image.show()
+            # root = tk.Tk()
+            file = filedialog.askopenfilename()
+            openFileObj = open(file,encoding='latin1')
+            bytearray = read = bytes(openFileObj.read(1024),'UTF-8')
+            while (read):
+                s.sendall(b'pic:'+ read + b';')
+                read =bytes(openFileObj.read(1024),'UTF-8')
         if ':' in msg:
             firstValue = msg[0]
             secondValue = msg[1]
@@ -83,8 +105,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 except:
                     itIsName = True
             if msg[0] == ':' or itIsName == False:
-                messageBody = msg
-                s.sendall(b'msg:' + bytes(messageBody, 'UTF-8') + b';')
+                    messageBody = msg
+                    s.sendall(b'msg:' + bytes(messageBody, 'UTF-8') + b';')
             else:
                 toClient, ignored, messageBody = msg.partition(':')
                 s.sendall(b'msg-to-client:' + bytes(toClient, 'UTF-8') + b':' + bytes(messageBody, 'UTF-8') + b';')
@@ -101,6 +123,12 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     logger.info('Finish client on %s:%s' % (HOST, PORT))
 
 
+# def insertImage():
+#     fileName = filedialog.askopenfilename()
+#     file = open(fileName)
+    # save = file.read()
+    # file.close()
+    # return save
 
 #
 # from PIL import Image

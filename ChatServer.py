@@ -65,6 +65,10 @@ class SingleClientCommandProcessor:
                     self.logger.info("client {} left our server and we can't send message to him".format(toClient))
             else:
                 self.logger.info("no client [{}] on server".format(toClient))
+        elif command == b'pic':
+            messageBody = data
+            for processor in self.clients.values():
+                processor.sendPicToClient(self.clientName, messageBody)
         elif command == b'exit':
             del self.clients[self.clientName]
             return False
@@ -82,7 +86,9 @@ class SingleClientCommandProcessor:
     def sendMessageToClient(self, fromClient: bytes, message: bytes):
         if self.clientName != fromClient:
             self.conn.sendall(b'msg:' + fromClient + b":" + b' ' + message+ b';')
-
+    def sendPicToClient(self,fromClient:bytes, pic: bytes):
+        if self.clientName != fromClient:
+            self.conn.sendall(b'pic:' + fromClient + b":" + b' ' + pic+ b';')
 
 class ClientThread(Thread):
     logger = Logging.getChatLogger("clientThread")
