@@ -37,10 +37,12 @@ class ListenerThread(Thread):
     def clientNewChunk (self, chunk: bytes):
         self.buffer += chunk
         while True:
-            if b';' not in self.buffer:
+            if b';;' not in self.buffer:
                 break
-            message, ignored, self.buffer = self.buffer.partition(b';')
+            message, ignored, self.buffer = self.buffer.partition(b';;')
             messageType, ignored, messageBody = message.partition(b':')
+            if messageType ==b'pic':
+                fromClient, ignor, messageBody = messageBody.partition(b':')
             if not self.onCommandClient(messageType, messageBody):
                 return False
         return True
@@ -63,15 +65,15 @@ class ListenerThread(Thread):
             messageBody = messageBody.decode('UTF-8')
             chatLogger.info(messageBody)
         elif messageType == b'pic':
-            messageBody = messageBody.decode('latin1')
-            img = Image.open(messageBody)
+            size = 512,512
+            img = Image.frombytes(decoder_name='raw',size=size,data=messageBody, mode='RGB')
             img.show()
         return True
 event = Event()
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     event.set()
     s.connect((HOST, PORT))
-    s.sendall(b'name:' + bytes(name, 'UTF-8') + b';')
+    s.sendall(b'name:' + bytes(name, 'UTF-8') + b';;')
     listenThread = ListenerThread()
     listenThread.start()
     toClient = ''
@@ -88,10 +90,13 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             # root = tk.Tk()
             file = filedialog.askopenfilename()
             openFileObj = open(file,encoding='latin1')
-            bytearray = read = bytes(openFileObj.read(1024),'UTF-8')
+            read = bytes(openFileObj.read(1024), 'UTF-8')
+            s.sendall(b'pic:'+ read)
             while (read):
-                s.sendall(b'pic:'+ read + b';')
-                read =bytes(openFileObj.read(1024),'UTF-8')
+                read = bytes(openFileObj.read(1024),'UTF-8')
+                s.sendall(read)
+            else:
+                s.sendall(b';;')
         if ':' in msg:
             firstValue = msg[0]
             secondValue = msg[1]
@@ -106,15 +111,15 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     itIsName = True
             if msg[0] == ':' or itIsName == False:
                     messageBody = msg
-                    s.sendall(b'msg:' + bytes(messageBody, 'UTF-8') + b';')
+                    s.sendall(b'msg:' + bytes(messageBody, 'UTF-8') + b';;')
             else:
                 toClient, ignored, messageBody = msg.partition(':')
-                s.sendall(b'msg-to-client:' + bytes(toClient, 'UTF-8') + b':' + bytes(messageBody, 'UTF-8') + b';')
+                s.sendall(b'msg-to-client:' + bytes(toClient, 'UTF-8') + b':' + bytes(messageBody, 'UTF-8') + b';;')
         elif msg == 'exit':
             break
         else:
             messageBody = msg
-            s.sendall(b'msg:' + bytes(messageBody, 'UTF-8') + b';')
+            s.sendall(b'msg:' + bytes(messageBody, 'UTF-8') + b';;')
         if toClient == '':
             logger.info('Connecting client to {}:{} as client {} (talking to everyone)'.format(HOST, PORT, name))
         else:

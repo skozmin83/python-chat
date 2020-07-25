@@ -24,7 +24,7 @@ class SingleClientCommandProcessor:
                 clientsMsg += bytes(client,'UTF-8') + b' '
             else:
                 clientsMsg += client + b' '
-        clientsMsg += b";"
+        clientsMsg += b";;"
         self.conn.sendall(clientsMsg)
 
     def finish(self):
@@ -35,9 +35,9 @@ class SingleClientCommandProcessor:
     def processNewChunk(self, chunk: bytes) -> bool:
         self.buffer += chunk
         while True:
-            if b';' not in self.buffer:
+            if b';;' not in self.buffer:
                 break
-            message, ignored, self.buffer = self.buffer.partition(b';')
+            message, ignored, self.buffer = self.buffer.partition(b';;')
             messageType, ignored, messageBody = message.partition(b':')
             if not self.onCommand(messageType, messageBody):
                 return False
@@ -66,9 +66,9 @@ class SingleClientCommandProcessor:
             else:
                 self.logger.info("no client [{}] on server".format(toClient))
         elif command == b'pic':
-            messageBody = data
-            for processor in self.clients.values():
-                processor.sendPicToClient(self.clientName, messageBody)
+                messageBody =data
+                for processor in self.clients.values():
+                    processor.sendPicToClient(self.clientName, messageBody)
         elif command == b'exit':
             del self.clients[self.clientName]
             return False
@@ -81,14 +81,14 @@ class SingleClientCommandProcessor:
 
     def sendStatusToClient(self, fromClient: bytes, Status: str):
         if self.clientName != fromClient:
-            self.conn.sendall(b'status-update:' + fromClient + bytes(Status,'UTF-8') +b';')
+            self.conn.sendall(b'status-update:' + fromClient + bytes(Status,'UTF-8') +b';;')
 
     def sendMessageToClient(self, fromClient: bytes, message: bytes):
         if self.clientName != fromClient:
-            self.conn.sendall(b'msg:' + fromClient + b":" + b' ' + message+ b';')
+            self.conn.sendall(b'msg:' + fromClient + b":" + b' ' + message+ b';;')
     def sendPicToClient(self,fromClient:bytes, pic: bytes):
         if self.clientName != fromClient:
-            self.conn.sendall(b'pic:' + fromClient + b":" + b' ' + pic+ b';')
+            self.conn.sendall(b'pic:' + fromClient + b":" + b' ' + pic+ b';;')
 
 class ClientThread(Thread):
     logger = Logging.getChatLogger("clientThread")
