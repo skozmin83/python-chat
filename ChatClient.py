@@ -88,8 +88,13 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             # image = Image.open('C:/Users/11/Desktop/Снимок.png')
             # image.show()
             # root = tk.Tk()
-            file = filedialog.askopenfilename()
-            openFileObj = open(file,encoding='latin1')
+            try:
+                file = filedialog.askopenfilename()
+                openFileObj = open(file,encoding='latin1')
+            except:
+                chatLogger.info('please select a picture')
+                file = filedialog.askopenfilename()
+                openFileObj = open(file,encoding='latin1')
             read = bytes(openFileObj.read(1024), 'UTF-8')
             s.sendall(b'pic:'+ read)
             while (read):
@@ -97,7 +102,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.sendall(read)
             else:
                 s.sendall(b';;')
-        if ':' in msg:
+        elif ':' in msg:
             firstValue = msg[0]
             secondValue = msg[1]
             try:
