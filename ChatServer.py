@@ -21,7 +21,7 @@ class SingleClientCommandProcessor:
         clientsMsg = b'clients:'
         for client in self.clients.keys():
             if client == str:
-                clientsMsg += bytes(client,'UTF-8') + b' '
+                clientsMsg += bytes(client, 'UTF-8') + b' '
             else:
                 clientsMsg += client + b' '
         clientsMsg += b";;"
@@ -29,7 +29,7 @@ class SingleClientCommandProcessor:
 
     def finish(self):
         self.logger.info("finish processing commands")
-        self.statusUpdate(self.clientName,ClientStatus.ClientStatus.OFFLINE.value)
+        self.statusUpdate(self.clientName, ClientStatus.ClientStatus.OFFLINE.value)
         self.clients[self.clientName] = None
 
     def processNewChunk(self, chunk: bytes) -> bool:
@@ -48,7 +48,7 @@ class SingleClientCommandProcessor:
         if command == b'name':
             self.clientName = data
             self.clients[self.clientName] = self
-            self.statusUpdate(self.clientName,ClientStatus.ClientStatus.ONLINE.value)
+            self.statusUpdate(self.clientName, ClientStatus.ClientStatus.ONLINE.value)
         elif command == b'msg':
             messageBody = data
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))
@@ -58,7 +58,7 @@ class SingleClientCommandProcessor:
             toClient, ignored, messageBody = data.partition(b':')
             self.logger.info("from [{}] to [{}] message [{}]".format(self.clientName, toClient, messageBody))
             if toClient in self.clients:
-                if self.clients[toClient] !=None:
+                if self.clients[toClient] != None:
                     self.clients[toClient].sendMessageToClient(self.clientName, messageBody)
                 else:
                     toClient = toClient.decode('UTF-8')
@@ -66,9 +66,9 @@ class SingleClientCommandProcessor:
             else:
                 self.logger.info("no client [{}] on server".format(toClient))
         elif command == b'pic':
-                messageBody =data
-                for processor in self.clients.values():
-                    processor.sendPicToClient(self.clientName, messageBody)
+            messageBody = data
+            for processor in self.clients.values():
+                processor.sendPicToClient(self.clientName, messageBody)
         elif command == b'exit':
             del self.clients[self.clientName]
             return False
@@ -77,22 +77,25 @@ class SingleClientCommandProcessor:
     def statusUpdate(self, fromClient, newStatus: ClientStatus):
         for processor in self.clients.values():
             if processor != None:
-                processor.sendStatusToClient(fromClient,newStatus)
+                processor.sendStatusToClient(fromClient, newStatus)
 
     def sendStatusToClient(self, fromClient: bytes, Status: str):
         if self.clientName != fromClient:
-            self.conn.sendall(b'status-update:' + fromClient + bytes(Status,'UTF-8') +b';;')
+            self.conn.sendall(b'status-update:' + fromClient + bytes(Status, 'UTF-8') + b';;')
 
     def sendMessageToClient(self, fromClient: bytes, message: bytes):
         if self.clientName != fromClient:
-            self.conn.sendall(b'msg:' + fromClient + b":" + b' ' + message+ b';;')
-    def sendPicToClient(self,fromClient:bytes, pic: bytes):
+            self.conn.sendall(b'msg:' + fromClient + b":" + b' ' + message + b';;')
+
+    def sendPicToClient(self, fromClient: bytes, pic: bytes):
         if self.clientName != fromClient:
-            self.conn.sendall(b'pic:' + fromClient + b":" + b' ' + pic+ b';;')
+            self.conn.sendall(b'pic:' + fromClient + b":" + b' ' + pic + b';;')
+
 
 class ClientThread(Thread):
     logger = Logging.getChatLogger("clientThread")
     chatLogger = Logging.getChatLogger('error')
+
     def __init__(self, processor: SingleClientCommandProcessor, conn: socket):
         Thread.__init__(self, name="t-{}:{}".format(ip, port), daemon=True)
         self.processor = processor
