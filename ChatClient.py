@@ -71,12 +71,14 @@ class ListenerThread(Thread):
             img.show()
         return True
 
-
 event = Event()
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     event.set()
     s.connect((HOST, PORT))
-    s.sendall(b'name:' + bytes(name, 'UTF-8') + b';;')
+    forSend = (b'1' + bytes(name, 'UTF-8'))
+    lenOfSend = forSend.__len__()+1
+    strSend = '1' + str(lenOfSend) + name
+    s.sendall(bytearray(strSend,'UTF-8'))
     listenThread = ListenerThread()
     listenThread.start()
     toClient = ''
@@ -90,19 +92,30 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         i = True
         msg = input('')
         if 'picture:' in msg:
-            # image = Image.open('C:/Users/11/Desktop/Снимок.png')
-            # image.show()
-            # root = tk.Tk()
             chatLogger.info('please select a picture')
             filePath = filedialog.askopenfilename()
-
             if not filePath:
                 continue
-
-            s.sendall(b'pic:')
+            bytesPicture = b''
             for bc in FileReader.bytesChunkFromFile(filePath):
-                s.sendall(bc)
-            s.sendall(b';;')
+                bytesPicture+=bc
+            forSend = b'2'+bytesPicture
+            lenOfSend = forSend.__len__() + 1
+            strSend = '2' + str(lenOfSend)
+            s.sendall(bytearray(strSend,'UTF-8') + bytesPicture)
+        # elif 'picture for:' in msg:
+        #     chatLogger.info('please select a picture')
+        #     filePath = filedialog.askopenfilename()
+        #     if not filePath:
+        #         continue
+        #     bytesPicture = b''
+        #     for bc in FileReader.bytesChunkFromFile(filePath):
+        #         bytesPicture += bc
+        #     toClient, ignored, messageBody = msg.partition(':')
+        #     forSend = (b'4' + bytes(toClient, 'UTF-8') + b':' + bytes(messageBody, 'UTF-8'))
+        #     lenOfSend = forSend.__len__() + 1
+        #     strSend = '4' + str(lenOfSend) + toClient + ':' + messageBody
+        #     s.sendall(bytearray(strSend, 'UTF-8'))
         elif ':' in msg:
             firstValue = msg[0]
             secondValue = msg[1]
@@ -117,21 +130,38 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     itIsName = True
             if msg[0] == ':' or itIsName == False:
                 messageBody = msg
-                s.sendall(b'msg:' + bytes(messageBody, 'UTF-8') + b';;')
+                forSend = (b'3' + bytes(messageBody, 'UTF-8'))
+                lenOfSend = forSend.__len__() + 1
+                strSend = '3' + str(lenOfSend) + messageBody
+                s.sendall(bytearray(strSend, 'UTF-8'))
             else:
                 toClient, ignored, messageBody = msg.partition(':')
-                s.sendall(b'msg-to-client:' + bytes(toClient, 'UTF-8') + b':' + bytes(messageBody, 'UTF-8') + b';;')
+                forSend = (b'4' + bytes(toClient,'UTF-8')+ b':'+ bytes(messageBody, 'UTF-8'))
+                lenOfSend = forSend.__len__() + 1
+                strSend = '4' + str(lenOfSend) + toClient + ':'+ messageBody
+                s.sendall(bytearray(strSend, 'UTF-8'))
         elif msg == 'exit':
+            forSend = (b'5')
+            s.sendall (forSend)
             break
         else:
             messageBody = msg
-            s.sendall(b'msg:' + bytes(messageBody, 'UTF-8') + b';;')
+            forSend = (b'3' + bytes(messageBody, 'UTF-8'))
+            lenOfSend = forSend.__len__() + 1
+            strSend = '3' + str(lenOfSend) + messageBody
+            s.sendall(bytearray(strSend, 'UTF-8'))
         if toClient == '':
             logger.info('Connecting client to {}:{} as client {} (talking to everyone)'.format(HOST, PORT, name))
         else:
             logger.info('Connecting client to {}:{} as client {} (talking to {})'.format(HOST, PORT, name, toClient))
 
     logger.info('Finish client on %s:%s' % (HOST, PORT))
+
+
+# image = Image.open('C:/Users/11/Desktop/Снимок.png')
+            # image.show()
+            # root = tk.Tk()
+
 
 # def insertImage():
 #     fileName = filedialog.askopenfilename()
