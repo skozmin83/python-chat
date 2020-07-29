@@ -3,6 +3,7 @@ import socket
 import Logging
 import ClientStatus
 from threading import Thread
+import struct
 
 
 class SingleClientCommandProcessor:
@@ -33,29 +34,32 @@ class SingleClientCommandProcessor:
         self.clients[self.clientName] = None
 
     def processNewChunk(self, chunk: bytes) -> bool:
-        self.buffer += chunk
-        while True:
-            if b';;' not in self.buffer:
-                break
-            message, ignored, self.buffer = self.buffer.partition(b';;')
-            messageType, ignored, messageBody = message.partition(b':')
-            if not self.onCommand(messageType, messageBody):
-                return False
+        if self.buffer==b'':
+            messageType = chunk[0]
+            messagelen = chunk[1]
+            messageBody = chunk[2:]
+            if len(messageBody)<messagelen:
+                self.buffer+=messageBody
+            else:
+                self.buffer =b''
+                if not self.onCommand(messageType, messagelen, messageBody):
+                    return False
         return True
 
-    def onCommand(self, command: bytes, data: bytes) -> bool:
-        self.logger.info("processing command[{}], data[{}]".format(command, data))
-        if command == b'name':
-            self.clientName = data
+    def onCommand(self, command: int, lenOfData: int, data: bytes) -> bool:
+        self.logger.info("processing command[{}], len[{}], data[{}]".format(command,lenOfData, data))
+        if command == 49:
+            self.clientName = data[0:lenOfData]
             self.clients[self.clientName] = self
             self.statusUpdate(self.clientName, ClientStatus.ClientStatus.ONLINE.value)
-        elif command == b'msg':
-            messageBody = data
+        elif command == 51:
+            messageBody = data[0:lenOfData]
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))
             for processor in self.clients.values():
                 processor.sendMessageToClient(self.clientName, messageBody)
-        elif command == b'msg-to-client':
+        elif command == 52:
             toClient, ignored, messageBody = data.partition(b':')
+            messageBody = messageBody[0:lenOfData]
             self.logger.info("from [{}] to [{}] message [{}]".format(self.clientName, toClient, messageBody))
             if toClient in self.clients:
                 if self.clients[toClient] != None:
@@ -65,12 +69,15 @@ class SingleClientCommandProcessor:
                     self.logger.info("client {} left our server and we can't send message to him".format(toClient))
             else:
                 self.logger.info("no client [{}] on server".format(toClient))
-        elif command == b'pic':
-            messageBody = data
+        elif command == 50:
+            messageBody = data[0:lenOfData]
             for processor in self.clients.values():
                 processor.sendPicToClient(self.clientName, messageBody)
-        elif command == b'exit':
+        elif command == 53:
             del self.clients[self.clientName]
+            return False
+        else:
+            self.logger.info('no such command')
             return False
         return True
 
