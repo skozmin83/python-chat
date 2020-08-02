@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import socket
 import Logging
-import ClientStatus
+import Constants
 from threading import Thread
 import struct
 
@@ -30,7 +30,7 @@ class SingleClientCommandProcessor:
 
     def finish(self):
         self.logger.info("finish processing commands")
-        self.statusUpdate(self.clientName, ClientStatus.ClientStatus.OFFLINE.value)
+        self.statusUpdate(self.clientName, Constants.ClientStatus.OFFLINE.value)
         self.clients[self.clientName] = None
 
     def processNewChunk(self, chunk: bytes) -> bool:
@@ -58,7 +58,7 @@ class SingleClientCommandProcessor:
         if command == 49:
             self.clientName = data[0:lenOfData]
             self.clients[self.clientName] = self
-            self.statusUpdate(self.clientName, ClientStatus.ClientStatus.ONLINE.value)
+            self.statusUpdate(self.clientName, Constants.ClientStatus.ONLINE.value)
         elif command == 51:
             messageBody = data[0:lenOfData]
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))
@@ -88,12 +88,12 @@ class SingleClientCommandProcessor:
             return False
         return True
 
-    def statusUpdate(self, fromClient, newStatus: ClientStatus):
+    def statusUpdate(self, fromClient, newStatus: Constants):
         for processor in self.clients.values():
             if processor != None:
                 processor.sendStatusToClient(fromClient, newStatus)
 
-    def sendStatusToClient(self, fromClient: bytes, Status: str):
+    def sendStatusToClient(self, fromClient: bytes, status: Constants):
         if self.clientName != fromClient:
             self.conn.sendall(b'status-update:' + fromClient + bytes(Status, 'UTF-8') + b';;')
 

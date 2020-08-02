@@ -9,6 +9,8 @@ from PIL import Image
 import Logging
 import FileReader
 import NumberToBin
+from Constants import MessageType
+from WriterAndReader import WriterAndReader
 
 logger = Logging.getLogger('client')
 chatLogger = Logging.getChatLogger('chat')
@@ -20,6 +22,7 @@ if len(sys.argv) < 2:
     exit(14)
 name = sys.argv[1]
 
+writer = WriterAndReader()
 
 class ListenerThread(Thread):
     def __init__(self):
@@ -143,38 +146,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.sendall (forSend)
             break
         else:
-            messageBody = msg
-            lenghtOfMsg = len(msg)
-            strLenOfMsg = chr(lenghtOfMsg)
-            lenOfString = len(strLenOfMsg)
-            s.sendall(b'3' + bytes(str(lenOfString), 'UTF-8') + bytes(chr(lenghtOfMsg), 'UTF-8') + bytes(msg, 'UTF-8'))
+            s.sendall(writer.createMessage(MessageType.TEXT, bytearray(msg, 'UTF-8')))
+
         if toClient == '':
             logger.info('Connecting client to {}:{} as client {} (talking to everyone)'.format(HOST, PORT, name))
         else:
             logger.info('Connecting client to {}:{} as client {} (talking to {})'.format(HOST, PORT, name, toClient))
 
     logger.info('Finish client on %s:%s' % (HOST, PORT))
-
-
-# image = Image.open('C:/Users/11/Desktop/Снимок.png')
-            # image.show()
-            # root = tk.Tk()
-
-
-# def insertImage():
-#     fileName = filedialog.askopenfilename()
-#     file = open(fileName)
-# save = file.read()
-# file.close()
-# return save
-
-#
-# from PIL import Image
-#
-# image = Image.open('C:/Users/sergey/Desktop/umbrella.psd')
-# image.show()import tkinter as tk
-# from tkinter import filedialog
-# from PIL import Image
-#
-# root = tk.Tk()
-# root.withdraw()
