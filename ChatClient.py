@@ -5,11 +5,10 @@ import tkinter as tk
 from threading import Event, Thread
 from tkinter import filedialog
 import struct
-
 from PIL import Image
-
 import Logging
 import FileReader
+import NumberToBin
 
 logger = Logging.getLogger('client')
 chatLogger = Logging.getChatLogger('chat')
@@ -77,7 +76,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     event.set()
     s.connect((HOST, PORT))
     lenghtOfName = len(name)
-    s.sendall(b'1'+ bytes(chr(lenghtOfName),'UTF-8') + bytes(name,'UTF-8'))
+    bitLen = NumberToBin.sol.toBin(lenghtOfName)
+    s.sendall(b'1'+ bytes(chr(lenOfString),'UTF-8') + bytes(chr(lenghtOfName),'UTF-8') + bytes(name,'UTF-8'))
     listenThread = ListenerThread()
     listenThread.start()
     toClient = ''
@@ -99,7 +99,9 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             for bc in FileReader.bytesChunkFromFile(filePath):
                 bytesPicture+=bc
             lenghtOfPicture = len(bytesPicture)
-            s.sendall(b'2' + bytes(chr(lenghtOfPicture), 'UTF-8') + bytesPicture)
+            strLenOfMsg = chr(lenghtOfPicture)
+            lenOfString = len(strLenOfMsg)
+            s.sendall(b'2' + bytes(str(lenOfString), 'UTF-8')+ bytes(chr(lenghtOfPicture), 'UTF-8') + bytesPicture)
         # elif 'picture for:' in msg:
         #     chatLogger.info('please select a picture')
         #     filePath = filedialog.askopenfilename()
@@ -128,18 +130,24 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             if msg[0] == ':' or itIsName == False:
                 messageBody = msg
                 lenghtOfMsg = len(msg)
-                s.sendall(b'3' + bytes(chr(lenghtOfMsg), 'UTF-8') + bytes(msg, 'UTF-8'))
+                strLenOfMsg = chr(lenghtOfMsg)
+                lenOfString = len(strLenOfMsg)
+                s.sendall(b'3' + bytes(str(lenOfString),'UTF-8') + bytes(chr(lenghtOfMsg), 'UTF-8') + bytes(msg, 'UTF-8'))
             else:
                 lenghtOfMsg = len(msg)
-                s.sendall(b'4' + bytes(chr(lenghtOfMsg), 'UTF-8') + bytes(msg, 'UTF-8'))
+                strLenOfMsg = chr(lenghtOfMsg)
+                lenOfString = len(strLenOfMsg)
+                s.sendall(b'4' + bytes(str(lenOfString),'UTF-8') + bytes(chr(lenghtOfMsg), 'UTF-8') + bytes(msg, 'UTF-8'))
         elif msg == 'exit':
-            forSend = (b'5'+ bytes(0))
+            forSend = (b'5'+ bytes(0)+ bytes(0))
             s.sendall (forSend)
             break
         else:
             messageBody = msg
             lenghtOfMsg = len(msg)
-            s.sendall(b'3' + bytes(chr(lenghtOfMsg), 'UTF-8') + bytes(msg, 'UTF-8'))
+            strLenOfMsg = chr(lenghtOfMsg)
+            lenOfString = len(strLenOfMsg)
+            s.sendall(b'3' + bytes(str(lenOfString), 'UTF-8') + bytes(chr(lenghtOfMsg), 'UTF-8') + bytes(msg, 'UTF-8'))
         if toClient == '':
             logger.info('Connecting client to {}:{} as client {} (talking to everyone)'.format(HOST, PORT, name))
         else:

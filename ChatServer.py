@@ -36,8 +36,15 @@ class SingleClientCommandProcessor:
     def processNewChunk(self, chunk: bytes) -> bool:
         if self.buffer==b'':
             messageType = chunk[0]
-            messagelen = chunk[1]
-            messageBody = chunk[2:]
+            lenOfLen =chunk[1]
+            intLenOfLen =struct.unpack(chunk[1],str:str)
+            strLen = ''
+            lenIndex = lenOfLen+2
+            strChunk = chunk.decode('UTF-8')
+            for index in range(2,2+lenOfLen+1):
+                strLen+= strChunk[index]
+            messagelen = int(strLen)
+            messageBody = chunk[lenIndex+1:]
             if len(messageBody)<messagelen:
                 self.buffer+=messageBody
             else:
