@@ -11,3 +11,4 @@ class MessageType(Enum):
     TEXT_TO_CLIENT = 4
     EXIT = 5
     STATUS = 6
+    CLIENTS_ONLINE = 7

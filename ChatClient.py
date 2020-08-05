@@ -4,11 +4,9 @@ import sys
 import tkinter as tk
 from threading import Event, Thread
 from tkinter import filedialog
-import struct
 from PIL import Image
 import Logging
 import FileReader
-import NumberToBin
 from Constants import MessageType
 from WriterAndReader import WriterAndReader
 
@@ -22,37 +20,23 @@ if len(sys.argv) < 2:
     exit(14)
 name = sys.argv[1]
 
-writer = WriterAndReader()
 
-class ListenerThread(Thread):
+class CommandProcessor:
     def __init__(self):
-        Thread.__init__(self, name='listener thread', daemon=True)
         self.buffer = b''
 
-    def run(self):
-        try:
-            while True:
-                receivedData = s.recv(1024)
-                if receivedData:
-                    self.clientNewChunk(receivedData)
-        except:
-            logger.info('error', exc_info=True)
-
     def clientNewChunk(self, chunk: bytes):
-        self.buffer += chunk
+        reader = WriterAndReader()
         while True:
-            if b';;' not in self.buffer:
-                break
-            message, ignored, self.buffer = self.buffer.partition(b';;')
-            messageType, ignored, messageBody = message.partition(b':')
-            if messageType == b'pic':
-                fromClient, ignor, messageBody = messageBody.partition(b':')
-            if not self.onCommandClient(messageType, messageBody):
+            chunkArray = bytearray(chunk)
+            mesType = reader.parseMessageType(chunkArray)
+            mesBody = reader.parseMessage(mesType,chunkArray)
+            if not self.onCommandClient(mesType, mesBody):
                 return False
-        return True
+            return True
 
-    def onCommandClient(self, messageType: bytes, messageBody: bytes) -> bool:
-        if messageType == b'clients':
+    def onCommandClient(self, messageType: MessageType, messageBody: bytes) -> bool:
+        if messageType == b'7':
             messageBody = messageBody.decode('UTF-8')
             clientsOnline = messageBody.split(' ')
             if clientsOnline[0] != '':
@@ -62,36 +46,48 @@ class ListenerThread(Thread):
             for client in clientsOnline:
                 if client != '':
                     chatLogger.info(client)
-        elif messageType == b'status-update':
+        elif messageType == b'6':
             messageBody = messageBody.decode('UTF-8')
             chatLogger.info(messageBody)
-        elif messageType == b'msg':
+        elif messageType == b'4':
             messageBody = messageBody.decode('UTF-8')
             chatLogger.info(messageBody)
-        elif messageType == b'pic':
+        elif messageType == b'2':
             size = 512, 512
             img = Image.frombytes(decoder_name='raw', size=size, data=messageBody, mode='RGB')
             img.show()
         return True
 
-event = Event()
+class ListenerThread(Thread):
+    def __init__(self, processor: CommandProcessor, s = socket.socket):
+        Thread.__init__(self, name='listener thread', daemon=True)
+        self.processor = processor
+        self.s = s
+
+    def run(self):
+        try:
+            while True:
+                receivedData = self.s.recv(s,1024)
+                if not receivedData:
+                    return
+                if not self.processor.clientNewChunk(receivedData):
+                    return
+        except:
+            logger.info('error', exc_info=True)
+
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    event.set()
     s.connect((HOST, PORT))
-    lenghtOfName = len(name)
-    bitLen = NumberToBin.sol.toBin(lenghtOfName)
-    s.sendall(b'1'+ bytes(chr(lenOfString),'UTF-8') + bytes(chr(lenghtOfName),'UTF-8') + bytes(name,'UTF-8'))
-    listenThread = ListenerThread()
+    writer = WriterAndReader()
+    forSend = writer.createMessage(msgType=MessageType.CLIENT_NAME, msg=bytearray(name,'UTF-8'))
+    s.sendall(forSend)
+    listenThread = ListenerThread(CommandProcessor(), s)
     listenThread.start()
     toClient = ''
     chatLogger.info(
         'If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
-    chatLogger.info(
-        'If you want send picture to someone enter "name: picture:" and press enter, if you want send picture to everyone enter "picture:" withont name')
     root = tk.Tk()
     root.withdraw()
     while True:
-        i = True
         msg = input('')
         if 'picture:' in msg:
             chatLogger.info('please select a picture')
@@ -101,23 +97,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             bytesPicture = b''
             for bc in FileReader.bytesChunkFromFile(filePath):
                 bytesPicture+=bc
-            lenghtOfPicture = len(bytesPicture)
-            strLenOfMsg = chr(lenghtOfPicture)
-            lenOfString = len(strLenOfMsg)
-            s.sendall(b'2' + bytes(str(lenOfString), 'UTF-8')+ bytes(chr(lenghtOfPicture), 'UTF-8') + bytesPicture)
-        # elif 'picture for:' in msg:
-        #     chatLogger.info('please select a picture')
-        #     filePath = filedialog.askopenfilename()
-        #     if not filePath:
-        #         continue
-        #     bytesPicture = b''
-        #     for bc in FileReader.bytesChunkFromFile(filePath):
-        #         bytesPicture += bc
-        #     toClient, ignored, messageBody = msg.partition(':')
-        #     forSend = (b'4' + bytes(toClient, 'UTF-8') + b':' + bytes(messageBody, 'UTF-8'))
-        #     lenOfSend = forSend.__len__() + 1
-        #     strSend = '4' + str(lenOfSend) + toClient + ':' + messageBody
-        #     s.sendall(bytearray(strSend, 'UTF-8'))
+            forSend = writer.createMessage(MessageType.IMAGE, bytesPicture)
+            s.sendall(forSend)
         elif ':' in msg:
             firstValue = msg[0]
             secondValue = msg[1]
@@ -131,26 +112,16 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 except:
                     itIsName = True
             if msg[0] == ':' or itIsName == False:
-                messageBody = msg
-                lenghtOfMsg = len(msg)
-                strLenOfMsg = chr(lenghtOfMsg)
-                lenOfString = len(strLenOfMsg)
-                s.sendall(b'3' + bytes(str(lenOfString),'UTF-8') + bytes(chr(lenghtOfMsg), 'UTF-8') + bytes(msg, 'UTF-8'))
+                forSend = writer.createMessage(MessageType.TEXT, bytearray(msg,'UTF-8'))
+                s.sendall(forSend)
             else:
-                lenghtOfMsg = len(msg)
-                strLenOfMsg = chr(lenghtOfMsg)
-                lenOfString = len(strLenOfMsg)
-                s.sendall(b'4' + bytes(str(lenOfString),'UTF-8') + bytes(chr(lenghtOfMsg), 'UTF-8') + bytes(msg, 'UTF-8'))
+                forSend = writer.createMessage(MessageType.TEXT_TO_CLIENT, bytearray(msg,'UTF-8'))
+                s.sendall(forSend)
         elif msg == 'exit':
-            forSend = (b'5'+ bytes(0)+ bytes(0))
+            forSend = writer.createMessage(MessageType.EXIT,bytearray())
             s.sendall (forSend)
             break
         else:
-            s.sendall(writer.createMessage(MessageType.TEXT, bytearray(msg, 'UTF-8')))
-
-        if toClient == '':
-            logger.info('Connecting client to {}:{} as client {} (talking to everyone)'.format(HOST, PORT, name))
-        else:
-            logger.info('Connecting client to {}:{} as client {} (talking to {})'.format(HOST, PORT, name, toClient))
-
+            forSend = writer.createMessage(MessageType.TEXT, bytearray(msg, 'UTF-8'))
+            s.sendall(forSend)
     logger.info('Finish client on %s:%s' % (HOST, PORT))
