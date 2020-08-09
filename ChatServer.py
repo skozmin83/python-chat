@@ -16,14 +16,26 @@ class SingleClientCommandProcessor:
         self.port = port
         self.clientName = None
         self.buffer = b''
+        self.len = 0
+        self.type = None
 
     def start(self):
         self.logger.info("start processing commands")
-        clientsMsg = b'7'
+        clientsMsg = b''
+        nobodyHere = True
         for client in self.clients.keys():
             if client !=None:
                 clientsMsg += client + b' '
-        self.conn.sendall(clientsMsg)
+                nobodyHere = False
+        if nobodyHere == False:
+            writer = WriterAndReader()
+            forSend = writer.createMessage(Constants.MessageType.CLIENTS_ONLINE, bytearray(clientsMsg))
+            self.conn.sendall(forSend)
+        else:
+            writer = WriterAndReader()
+            forSend = writer.createMessage(Constants.MessageType.CLIENTS_ONLINE, bytearray(b'nobody'))
+            self.conn.sendall(forSend)
+
 
     def finish(self):
         self.logger.info("finish processing commands")
@@ -31,29 +43,51 @@ class SingleClientCommandProcessor:
         self.clients[self.clientName] = None
 
     def processNewChunk(self, chunk: bytes) -> bool:
-        reader = WriterAndReader()
-        chunkArray = bytearray(chunk)
-        mesType = reader.parseMessageType(chunkArray)
-        mesLen = reader.parseLen(chunkArray)
-        mesBody = reader.parseMessage(mesType,chunkArray)
-        if not self.onCommand(mesType, mesLen, mesBody):
+        if self.buffer ==b'':
+            reader = WriterAndReader()
+            chunkArray = bytearray(chunk)
+            mesType = reader.parseMessageType(chunkArray)
+            mesLen = reader.parseLen(chunkArray)
+            mesBody = reader.parseMessage(mesType,chunkArray)
+            if len(mesBody)+len(self.buffer)<mesLen:
+                self.buffer+=mesBody
+                self.len = mesLen
+                self.type = mesType
+                self.logger.info('len(mesBody) + len(buffer) = {}, mesLen = {}'.format(len(mesBody)+len(self.buffer), mesLen))
+            else:
+                self.buffer =b''
+                self.len = 0
+                self.type = None
+                self.logger.info('len(mesBody) + len(buffer) = {}, mesLen = {}'.format(len(mesBody) + len(self.buffer), mesLen))
+            if not self.onCommand(mesType, mesBody):
+                return False
+        else:
+            mesBody = bytearray(chunk)
+            if len(mesBody)+len(self.buffer)<self.len:
+                self.buffer+=mesBody
+                self.logger.info('len(mesBody) + len(buffer) = {}, mesLen = {}'.format(len(mesBody) + len(self.buffer), self.len))
+            else:
+                if not self.onCommand(self.type, mesBody):
+                    self.buffer = b''
+                    self.len = 0
+                    self.type = None
+                    self.logger.info('len(mesBody) + len(buffer) = {}, mesLen = {}'.format(len(mesBody) + len(self.buffer), self.len))
                     return False
         return True
 
-    def onCommand(self, command: Constants.MessageType, lenOfData: int, data: bytes) -> bool:
-        self.logger.info("processing command[{}], len[{}], data[{}]".format(command,lenOfData, data))
-        if command.value == 1:
+    def onCommand(self, command: Constants.MessageType, data: bytes) -> bool:
+        self.logger.info("processing command[{}], data[{}]".format(command, data))
+        if command == 1:
             self.clientName = data
             self.clients[self.clientName] = self
             self.statusUpdate(self.clientName, Constants.ClientStatus.ONLINE.value)
-        elif command.value == 3:
+        elif command == 3:
             messageBody = data
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))
             for processor in self.clients.values():
                 processor.sendMessage(self.clientName, messageBody)
-        elif command.value == 4:
-            toClient, ignored, messageBody = data.partition(b':')
-            messageBody = messageBody
+        elif command == 4:
+            toClient, ignored, messageBody = data.partition(b'\x00:')
             self.logger.info("from [{}] to [{}] message [{}]".format(self.clientName, toClient, messageBody))
             if toClient in self.clients:
                 if self.clients[toClient] != None:
@@ -63,11 +97,12 @@ class SingleClientCommandProcessor:
                     self.logger.info("client {} left our server and we can't send message to him".format(toClient))
             else:
                 self.logger.info("no client [{}] on server".format(toClient))
-        elif command.value == 2:
+        elif command == 2:
             messageBody = data
             for processor in self.clients.values():
-                processor.sendPicToClient(self.clientName, messageBody)
-        elif command.value == 5:
+                if processor !=None:
+                    processor.sendPicToClient(self.clientName, messageBody)
+        elif command == 5:
             del self.clients[self.clientName]
             return False
         else:
@@ -86,20 +121,27 @@ class SingleClientCommandProcessor:
 
     def sendStatusToClient(self, fromClient: bytes, status: bytes):
         if self.clientName != fromClient:
-            forSend =bytearray(b'6'+ fromClient + status)
+            writer = WriterAndReader()
+            forSend = writer.createMessage(Constants.MessageType.STATUS, bytearray(status+fromClient))
             self.conn.sendall(forSend)
 
     def sendMessageToClient(self, fromClient: bytes, message: bytes):
+        writer = WriterAndReader()
+        forSend = writer.createMessage(Constants.MessageType.TEXT_TO_CLIENT,bytearray(fromClient+b':'+ message))
         if self.clientName != fromClient:
-            self.conn.sendall(b'4' + fromClient + message)
+            self.conn.sendall(forSend)
 
     def sendMessage(self, fromClient: bytes, message: bytes):
+        writer = WriterAndReader()
+        forSend = writer.createMessage(Constants.MessageType.TEXT, bytearray(fromClient+b': '+ message))
         if self.clientName != fromClient:
-            self.conn.sendall(b'3' + fromClient + message )
+            self.conn.sendall(forSend)
 
     def sendPicToClient(self, fromClient: bytes, pic: bytes):
+        writer = WriterAndReader()
+        forSend = writer.createMessage(Constants.MessageType.IMAGE, bytearray(pic))
         if self.clientName != fromClient:
-            self.conn.sendall(b'2' + fromClient + pic)
+            self.conn.sendall(forSend)
 
 
 class ClientThread(Thread):

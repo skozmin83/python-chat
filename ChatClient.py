@@ -24,42 +24,70 @@ name = sys.argv[1]
 class CommandProcessor:
     def __init__(self):
         self.buffer = b''
+        self.type = None
+        self.len = 0
 
     def clientNewChunk(self, chunk: bytes):
-        reader = WriterAndReader()
-        while True:
+        if self.buffer == b'':
+            reader = WriterAndReader()
             chunkArray = bytearray(chunk)
             mesType = reader.parseMessageType(chunkArray)
-            mesBody = reader.parseMessage(mesType,chunkArray)
+            mesLen = reader.parseLen(chunkArray)
+            mesBody = reader.parseMessage(mesType, chunkArray)
+            if len(mesBody) + len(self.buffer) < mesLen:
+                self.buffer += mesBody
+                self.len = mesLen
+                self.type = mesType
+            else:
+                self.buffer = b''
+                self.len = 0
+                self.type = None
             if not self.onCommandClient(mesType, mesBody):
                 return False
-            return True
+        else:
+            mesBody = bytearray(chunk)
+            if len(mesBody) + len(self.buffer) < self.len:
+                self.buffer += mesBody
+            else:
+                if not self.onCommandClient(self.type, mesBody):
+                    self.buffer = b''
+                    self.len = 0
+                    self.type = None
+                    return False
+        return True
 
     def onCommandClient(self, messageType: MessageType, messageBody: bytes) -> bool:
-        if messageType == b'7':
+        if messageType == 7:
+            messageBody = bytes(messageBody)
             messageBody = messageBody.decode('UTF-8')
             clientsOnline = messageBody.split(' ')
-            if clientsOnline[0] != '':
+            if clientsOnline != ['\x00n\x00o\x00b\x00o\x00d\x00y']:
                 chatLogger.info('these clients are online now:')
+                for client in clientsOnline:
+                    if client != '':
+                        chatLogger.info(client)
             else:
                 chatLogger.info('nobody here')
-            for client in clientsOnline:
-                if client != '':
-                    chatLogger.info(client)
-        elif messageType == b'6':
+        elif messageType == 6:
+            messageBody = messageBody.decode('UTF-8')
+            status = messageBody[0]
+            messageBody = messageBody[1:]
+            if status == '1':
+                chatLogger.info(messageBody + ' offline')
+            elif status == '2':
+                chatLogger.info(messageBody + ' online')
+        elif messageType == 4 or messageType == 3:
             messageBody = messageBody.decode('UTF-8')
             chatLogger.info(messageBody)
-        elif messageType == b'4':
-            messageBody = messageBody.decode('UTF-8')
-            chatLogger.info(messageBody)
-        elif messageType == b'2':
+        elif messageType == 2:
+            messageBody = bytes(messageBody)
             size = 512, 512
             img = Image.frombytes(decoder_name='raw', size=size, data=messageBody, mode='RGB')
             img.show()
         return True
 
 class ListenerThread(Thread):
-    def __init__(self, processor: CommandProcessor, s = socket.socket):
+    def __init__(self, processor: CommandProcessor, s: socket):
         Thread.__init__(self, name='listener thread', daemon=True)
         self.processor = processor
         self.s = s
@@ -67,7 +95,7 @@ class ListenerThread(Thread):
     def run(self):
         try:
             while True:
-                receivedData = self.s.recv(s,1024)
+                receivedData = self.s.recv(1024)
                 if not receivedData:
                     return
                 if not self.processor.clientNewChunk(receivedData):
