@@ -34,7 +34,7 @@ class CommandProcessor:
             mesType = reader.parseMessageType(chunkArray)
             mesLen = reader.parseLen(chunkArray)
             mesBody = reader.parseMessage(mesType, chunkArray)
-            if len(mesBody) + len(self.buffer) < mesLen:
+            if (len(mesBody) + len(self.buffer)) < mesLen:
                 self.buffer += mesBody
                 self.len = mesLen
                 self.type = mesType
@@ -42,11 +42,11 @@ class CommandProcessor:
                 self.buffer = b''
                 self.len = 0
                 self.type = None
-            if not self.onCommandClient(mesType, mesBody):
-                return False
+                if not self.onCommandClient(mesType, mesBody):
+                    return False
         else:
             mesBody = bytearray(chunk)
-            if len(mesBody) + len(self.buffer) < self.len:
+            if (len(mesBody) + len(self.buffer)) < self.len:
                 self.buffer += mesBody
             else:
                 if not self.onCommandClient(self.type, mesBody):

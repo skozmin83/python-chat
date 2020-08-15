@@ -49,29 +49,29 @@ class SingleClientCommandProcessor:
             mesType = reader.parseMessageType(chunkArray)
             mesLen = reader.parseLen(chunkArray)
             mesBody = reader.parseMessage(mesType,chunkArray)
-            if len(mesBody)+len(self.buffer)<mesLen:
+            if (len(mesBody)/2+len(self.buffer))<mesLen:
                 self.buffer+=mesBody
                 self.len = mesLen
                 self.type = mesType
-                self.logger.info('len(mesBody) + len(buffer) = {}, mesLen = {}'.format(len(mesBody)+len(self.buffer), mesLen))
+                self.logger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody)/2,len(self.buffer), mesLen))
             else:
                 self.buffer =b''
                 self.len = 0
                 self.type = None
-                self.logger.info('len(mesBody) + len(buffer) = {}, mesLen = {}'.format(len(mesBody) + len(self.buffer), mesLen))
-            if not self.onCommand(mesType, mesBody):
-                return False
+                self.logger.info('len(mesBody) = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody)/2,len(self.buffer), mesLen))
+                if not self.onCommand(mesType, mesBody):
+                    return False
         else:
             mesBody = bytearray(chunk)
-            if len(mesBody)+len(self.buffer)<self.len:
+            if (len(mesBody)/2+len(self.buffer))<self.len:
                 self.buffer+=mesBody
-                self.logger.info('len(mesBody) + len(buffer) = {}, mesLen = {}'.format(len(mesBody) + len(self.buffer), self.len))
+                self.logger.info('len(mesBody)  = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody)/2,len(self.buffer), self.len))
             else:
                 if not self.onCommand(self.type, mesBody):
                     self.buffer = b''
                     self.len = 0
                     self.type = None
-                    self.logger.info('len(mesBody) + len(buffer) = {}, mesLen = {}'.format(len(mesBody) + len(self.buffer), self.len))
+                    self.logger.info('len(mesBody) = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody)/2,len(self.buffer), self.len))
                     return False
         return True
 
