@@ -21,9 +21,10 @@ def getFileHandler(file_name:str):
     return file_handler
 
 
-def getChatLogger(logger_name="", file_name="./chat.log"):
+def getChatLogger(logger_name="", file_name="./chat1.log"):
     logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.DEBUG)  # better to have too much log than not enough
+    logger.setLevel(logging.DEBUG)
+    # better to have too much log than not enough
     logger.addHandler(getConsoleHandler())
     logger.addHandler(getFileHandler(file_name))
     # with this pattern, it's rarely necessary to propagate the error up to parent
@@ -31,9 +32,10 @@ def getChatLogger(logger_name="", file_name="./chat.log"):
     return logger
 
 
-def getLogger(logger_name="", file_name="./chat.log"):
+def getLogger(logger_name="", file_name="./chat1.log"):
     logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.DEBUG)  # better to have too much log than not enough
+    logger.setLevel(logging.DEBUG)
+    # better to have too much log than not enough
     # logger.addHandler(getConsoleHandler())
     logger.addHandler(getFileHandler(file_name))
     # with this pattern, it's rarely necessary to propagate the error up to parent
