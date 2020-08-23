@@ -1,5 +1,7 @@
 from Constants import MessageType
 
+HEADER_LENGTH = 5
+STATUS_HEADER_LENGTH = 6
 
 class WriterAndReader():
     maxSize = 2 ** 32
@@ -40,18 +42,15 @@ class WriterAndReader():
                 lenght = int(numberWithMask)
         return lenght
 
-
     def parseMessage(self,msgType: MessageType, msg: bytearray) -> bytes:
-        if msgType == 1 or msgType == 2 or msgType == 3 or msgType ==4 or msgType == 7:
-            ByteArray = msg[5:]
-        elif msgType == 6:
-            ByteArray = msg[6:]
+        if msgType == 1 or msgType == MessageType.IMAGE or msgType == 3 or msgType ==4 or msgType == 7:
+            byteArray = msg[HEADER_LENGTH:]
+        elif msgType == MessageType.STATUS:
+            byteArray = msg[STATUS_HEADER_LENGTH:]
         else:
-            ByteArray = msg[1:]
-        bytesMsg = bytes(ByteArray)
+            byteArray = msg[1:]
+        bytesMsg = bytes(byteArray)
         return bytesMsg
-
-
 
     def createMessage(self, msgType: MessageType, msg: bytearray) -> bytearray:
         b = bytearray(1 + 4 + len(msg))
@@ -59,12 +58,9 @@ class WriterAndReader():
         self.writeNumber(b, len(msg), 1)
         offset = 1 + 4
         idx = 0
-        correctIdx = 1
         while idx < len(msg):
-            b.append(0)
-            b[offset + correctIdx+ idx] = msg[idx]
+            b[idx + offset] = msg[idx]
             idx += 1
-            correctIdx+=1
         return b
 
     def writeNumber(self, buf: bytearray, toWrite: int, position: int) -> bytearray:

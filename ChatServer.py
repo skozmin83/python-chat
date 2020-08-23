@@ -18,24 +18,20 @@ class SingleClientCommandProcessor:
         self.buffer = b''
         self.len = 0
         self.type = None
+        self.writer = WriterAndReader()
 
     def start(self):
         self.logger.info("start processing commands")
-        clientsMsg = b''
-        nobodyHere = True
-        for client in self.clients.keys():
-            if client !=None:
-                clientsMsg += client + b' '
-                nobodyHere = False
-        if nobodyHere == False:
-            writer = WriterAndReader()
-            forSend = writer.createMessage(Constants.MessageType.CLIENTS_ONLINE, bytearray(clientsMsg))
-            self.conn.sendall(forSend)
-        else:
-            writer = WriterAndReader()
-            forSend = writer.createMessage(Constants.MessageType.CLIENTS_ONLINE, bytearray(b'nobody'))
-            self.conn.sendall(forSend)
+        clientsMsg = b'nobody'
 
+        if len(self.clients) > 0:
+            clientsMsg = b''
+            for client in self.clients.keys():
+                if client !=None:
+                    clientsMsg += client + b' '
+
+        forSend = self.writer.createMessage(Constants.MessageType.CLIENTS_ONLINE, bytearray(clientsMsg))
+        self.conn.sendall(forSend)
 
     def finish(self):
         self.logger.info("finish processing commands")
@@ -44,11 +40,10 @@ class SingleClientCommandProcessor:
 
     def processNewChunk(self, chunk: bytes) -> bool:
         if self.buffer ==b'':
-            reader = WriterAndReader()
             chunkArray = bytearray(chunk)
-            mesType = reader.parseMessageType(chunkArray)
-            mesLen = reader.parseLen(chunkArray)
-            mesBody = reader.parseMessage(mesType,chunkArray)
+            mesType = self.writer.parseMessageType(chunkArray)
+            mesLen = self.writer.parseLen(chunkArray)
+            mesBody = self.writer.parseMessage(mesType,chunkArray)
             if (len(mesBody)+len(self.buffer))<mesLen:
                 self.buffer+=mesBody
                 self.len = mesLen
@@ -87,7 +82,7 @@ class SingleClientCommandProcessor:
             for processor in self.clients.values():
                 processor.sendMessage(self.clientName, messageBody)
         elif command == 4:
-            toClient, ignored, messageBody = data.partition(b'\x00:')
+            toClient, ignored, messageBody = data.partition(b':')
             self.logger.info("from [{}] to [{}] message [{}]".format(self.clientName, toClient, messageBody))
             if toClient in self.clients:
                 if self.clients[toClient] != None:
@@ -121,25 +116,21 @@ class SingleClientCommandProcessor:
 
     def sendStatusToClient(self, fromClient: bytes, status: bytes):
         if self.clientName != fromClient:
-            writer = WriterAndReader()
-            forSend = writer.createMessage(Constants.MessageType.STATUS, bytearray(status+fromClient))
+            forSend = self.writer.createMessage(Constants.MessageType.STATUS, bytearray(status+fromClient))
             self.conn.sendall(forSend)
 
     def sendMessageToClient(self, fromClient: bytes, message: bytes):
-        writer = WriterAndReader()
-        forSend = writer.createMessage(Constants.MessageType.TEXT_TO_CLIENT,bytearray(fromClient+b':'+ message))
+        forSend = self.writer.createMessage(Constants.MessageType.TEXT_TO_CLIENT,bytearray(fromClient+b':'+ message))
         if self.clientName != fromClient:
             self.conn.sendall(forSend)
 
     def sendMessage(self, fromClient: bytes, message: bytes):
-        writer = WriterAndReader()
-        forSend = writer.createMessage(Constants.MessageType.TEXT, bytearray(fromClient+b': '+ message))
+        forSend = self.writer.createMessage(Constants.MessageType.TEXT, bytearray(fromClient+b': '+ message))
         if self.clientName != fromClient:
             self.conn.sendall(forSend)
 
     def sendPicToClient(self, fromClient: bytes, pic: bytes):
-        writer = WriterAndReader()
-        forSend = writer.createMessage(Constants.MessageType.IMAGE, bytearray(pic))
+        forSend = self.writer.createMessage(Constants.MessageType.IMAGE, bytearray(pic))
         if self.clientName != fromClient:
             self.conn.sendall(forSend)
 

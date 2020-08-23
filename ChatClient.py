@@ -61,7 +61,7 @@ class CommandProcessor:
             messageBody = bytes(messageBody)
             messageBody = messageBody.decode('UTF-8')
             clientsOnline = messageBody.split(' ')
-            if clientsOnline != ['\x00n\x00o\x00b\x00o\x00d\x00y']:
+            if clientsOnline != ['nobody']:
                 chatLogger.info('these clients are online now:')
                 for client in clientsOnline:
                     if client != '':
