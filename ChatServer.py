@@ -49,7 +49,7 @@ class SingleClientCommandProcessor:
             mesType = reader.parseMessageType(chunkArray)
             mesLen = reader.parseLen(chunkArray)
             mesBody = reader.parseMessage(mesType,chunkArray)
-            if (len(mesBody)/2+len(self.buffer))<mesLen:
+            if (len(mesBody)+len(self.buffer))<mesLen:
                 self.buffer+=mesBody
                 self.len = mesLen
                 self.type = mesType
@@ -63,7 +63,7 @@ class SingleClientCommandProcessor:
                     return False
         else:
             mesBody = bytearray(chunk)
-            if (len(mesBody)/2+len(self.buffer))<self.len:
+            if (len(mesBody)+len(self.buffer))<self.len:
                 self.buffer+=mesBody
                 self.logger.info('len(mesBody)  = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody)/2,len(self.buffer), self.len))
             else:
