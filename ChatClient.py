@@ -14,6 +14,7 @@ logger = Logging.getLogger('client')
 chatLogger = Logging.getChatLogger('chat')
 HOST = '127.0.0.1'  # The server's hostname or IP address
 PORT = 12346  # The port used by the server
+TYPE_OF_STATUS = 1
 
 if len(sys.argv) < 2:
     logger.info('Error! Need a this client name argument as arg #1!')
@@ -57,7 +58,7 @@ class CommandProcessor:
         return True
 
     def onCommandClient(self, messageType: MessageType, messageBody: bytes) -> bool:
-        if messageType == 7:
+        if messageType == MessageType.CLIENTS_ONLINE:
             messageBody = bytes(messageBody)
             messageBody = messageBody.decode('UTF-8')
             clientsOnline = messageBody.split(' ')
@@ -68,18 +69,18 @@ class CommandProcessor:
                         chatLogger.info(client)
             else:
                 chatLogger.info('nobody here')
-        elif messageType == 6:
+        elif messageType == MessageType.STATUS:
             messageBody = messageBody.decode('UTF-8')
             status = messageBody[0]
-            messageBody = messageBody[1:]
+            messageBody = messageBody[TYPE_OF_STATUS:]
             if status == '1':
                 chatLogger.info(messageBody + ' offline')
             elif status == '2':
                 chatLogger.info(messageBody + ' online')
-        elif messageType == 4 or messageType == 3:
+        elif messageType == MessageType.TEXT or messageType == MessageType.TEXT_TO_CLIENT:
             messageBody = messageBody.decode('UTF-8')
             chatLogger.info(messageBody)
-        elif messageType == 2:
+        elif messageType == MessageType.IMAGE:
             messageBody = bytes(messageBody)
             size = 512, 512
             img = Image.frombytes(decoder_name='raw', size=size, data=messageBody, mode='RGB')

@@ -2,6 +2,7 @@ from Constants import MessageType
 
 HEADER_LENGTH = 5
 STATUS_HEADER_LENGTH = 6
+EXIT_HEADER_LENGHT = 1
 
 class WriterAndReader():
     maxSize = 2 ** 32
@@ -11,19 +12,19 @@ class WriterAndReader():
         firstByte = chr(msg[0])
         firstByte = ord(firstByte)
         pass
-        if firstByte == 1:
+        if firstByte == MessageType.CLIENT_NAME:
             return MessageType.CLIENT_NAME.value
-        elif firstByte == 2:
+        elif firstByte == MessageType.IMAGE:
             return MessageType.IMAGE.value
-        elif firstByte == 3:
+        elif firstByte == MessageType.TEXT:
             return MessageType.TEXT.value
-        elif firstByte == 4:
+        elif firstByte == MessageType.TEXT_TO_CLIENT:
             return MessageType.TEXT_TO_CLIENT.value
-        elif firstByte == 5:
+        elif firstByte == MessageType.EXIT:
             return MessageType.EXIT.value
-        elif firstByte == 6:
+        elif firstByte == MessageType.STATUS:
             return MessageType.STATUS.value
-        elif firstByte ==7:
+        elif firstByte ==MessageType.CLIENTS_ONLINE:
             return MessageType.CLIENTS_ONLINE.value
 
 
@@ -43,12 +44,12 @@ class WriterAndReader():
         return lenght
 
     def parseMessage(self,msgType: MessageType, msg: bytearray) -> bytes:
-        if msgType == 1 or msgType == MessageType.IMAGE or msgType == 3 or msgType ==4 or msgType == 7:
+        if msgType == MessageType.CLIENT_NAME or msgType == MessageType.IMAGE or msgType == MessageType.TEXT or msgType ==MessageType.TEXT_TO_CLIENT or msgType == MessageType.CLIENTS_ONLINE:
             byteArray = msg[HEADER_LENGTH:]
         elif msgType == MessageType.STATUS:
             byteArray = msg[STATUS_HEADER_LENGTH:]
         else:
-            byteArray = msg[1:]
+            byteArray = msg[EXIT_HEADER_LENGHT:]
         bytesMsg = bytes(byteArray)
         return bytesMsg
 

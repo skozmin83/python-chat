@@ -72,16 +72,16 @@ class SingleClientCommandProcessor:
 
     def onCommand(self, command: Constants.MessageType, data: bytes) -> bool:
         self.logger.info("processing command[{}], data[{}]".format(command, data))
-        if command == 1:
+        if command == Constants.MessageType.CLIENT_NAME:
             self.clientName = data
             self.clients[self.clientName] = self
             self.statusUpdate(self.clientName, Constants.ClientStatus.ONLINE.value)
-        elif command == 3:
+        elif command == Constants.MessageType.TEXT:
             messageBody = data
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))
             for processor in self.clients.values():
                 processor.sendMessage(self.clientName, messageBody)
-        elif command == 4:
+        elif command == Constants.MessageType.TEXT_TO_CLIENT:
             toClient, ignored, messageBody = data.partition(b':')
             self.logger.info("from [{}] to [{}] message [{}]".format(self.clientName, toClient, messageBody))
             if toClient in self.clients:
@@ -92,12 +92,12 @@ class SingleClientCommandProcessor:
                     self.logger.info("client {} left our server and we can't send message to him".format(toClient))
             else:
                 self.logger.info("no client [{}] on server".format(toClient))
-        elif command == 2:
+        elif command == Constants.MessageType.IMAGE:
             messageBody = data
             for processor in self.clients.values():
                 if processor !=None:
                     processor.sendPicToClient(self.clientName, messageBody)
-        elif command == 5:
+        elif command == Constants.MessageType.EXIT:
             del self.clients[self.clientName]
             return False
         else:
@@ -106,7 +106,7 @@ class SingleClientCommandProcessor:
         return True
 
     def statusUpdate(self, fromClient, newStatus: Constants):
-        if newStatus == 1:
+        if newStatus == Constants.ClientStatus.OFFLINE:
             byteStatus = b'1'
         else:
             byteStatus = b'2'
