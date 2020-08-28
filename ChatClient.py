@@ -8,13 +8,15 @@ from PIL import Image
 import Logging
 import FileReader
 from Constants import MessageType
+from Constants import ClientStatus
 from WriterAndReader import WriterAndReader
 
 logger = Logging.getLogger('client')
 chatLogger = Logging.getChatLogger('chat')
 HOST = '127.0.0.1'  # The server's hostname or IP address
 PORT = 12346  # The port used by the server
-TYPE_OF_STATUS = 1
+TYPE_OF_STATUS = 0
+LENGHT_OF_MESSAGE =1
 
 if len(sys.argv) < 2:
     logger.info('Error! Need a this client name argument as arg #1!')
@@ -36,10 +38,12 @@ class CommandProcessor:
             mesLen = reader.parseLen(chunkArray)
             mesBody = reader.parseMessage(mesType, chunkArray)
             if (len(mesBody) + len(self.buffer)) < mesLen:
+                chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), mesLen))
                 self.buffer += mesBody
                 self.len = mesLen
                 self.type = mesType
             else:
+                chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), mesLen))
                 self.buffer = b''
                 self.len = 0
                 self.type = None
@@ -48,8 +52,10 @@ class CommandProcessor:
         else:
             mesBody = bytearray(chunk)
             if (len(mesBody) + len(self.buffer)) < self.len:
+                chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), self.len))
                 self.buffer += mesBody
             else:
+                chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), self.len))
                 if not self.onCommandClient(self.type, mesBody):
                     self.buffer = b''
                     self.len = 0
@@ -58,29 +64,26 @@ class CommandProcessor:
         return True
 
     def onCommandClient(self, messageType: MessageType, messageBody: bytes) -> bool:
-        if messageType == MessageType.CLIENTS_ONLINE:
+        if messageType == MessageType.CLIENTS_ONLINE.value:
             messageBody = bytes(messageBody)
             messageBody = messageBody.decode('UTF-8')
-            clientsOnline = messageBody.split(' ')
-            if clientsOnline != ['nobody']:
-                chatLogger.info('these clients are online now:')
-                for client in clientsOnline:
-                    if client != '':
-                        chatLogger.info(client)
-            else:
-                chatLogger.info('nobody here')
-        elif messageType == MessageType.STATUS:
+            clientsOnline = messageBody.split(',')
+            chatLogger.info('these clients are online now:')
+            for client in clientsOnline:
+                if client != '':
+                    chatLogger.info(client)
+        elif messageType == MessageType.STATUS.value:
+            status = int(chr(messageBody[TYPE_OF_STATUS]))
+            messageBody = messageBody[LENGHT_OF_MESSAGE:]
             messageBody = messageBody.decode('UTF-8')
-            status = messageBody[0]
-            messageBody = messageBody[TYPE_OF_STATUS:]
-            if status == '1':
+            if status == ClientStatus.OFFLINE.value:
                 chatLogger.info(messageBody + ' offline')
-            elif status == '2':
+            elif status == ClientStatus.ONLINE.value:
                 chatLogger.info(messageBody + ' online')
-        elif messageType == MessageType.TEXT or messageType == MessageType.TEXT_TO_CLIENT:
+        elif messageType == MessageType.TEXT.value or messageType == MessageType.TEXT_TO_CLIENT.value:
             messageBody = messageBody.decode('UTF-8')
             chatLogger.info(messageBody)
-        elif messageType == MessageType.IMAGE:
+        elif messageType == MessageType.IMAGE.value:
             messageBody = bytes(messageBody)
             size = 512, 512
             img = Image.frombytes(decoder_name='raw', size=size, data=messageBody, mode='RGB')
@@ -112,8 +115,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     listenThread = ListenerThread(CommandProcessor(), s)
     listenThread.start()
     toClient = ''
-    chatLogger.info(
-        'If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
+    chatLogger.info('If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
     root = tk.Tk()
     root.withdraw()
     while True:

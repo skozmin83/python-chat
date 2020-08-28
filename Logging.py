@@ -21,7 +21,7 @@ def getFileHandler(file_name:str):
     return file_handler
 
 
-def getChatLogger(logger_name="", file_name="./chat.log"):
+def getChatLogger(logger_name="", file_name="./chat2.log"):
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.DEBUG)
     # better to have too much log than not enough
@@ -32,7 +32,7 @@ def getChatLogger(logger_name="", file_name="./chat.log"):
     return logger
 
 
-def getLogger(logger_name="", file_name="./chat.log"):
+def getLogger(logger_name="", file_name="./chat2.log"):
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.DEBUG)
     # better to have too much log than not enough

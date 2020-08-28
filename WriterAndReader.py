@@ -1,7 +1,6 @@
 from Constants import MessageType
 
 HEADER_LENGTH = 5
-STATUS_HEADER_LENGTH = 6
 EXIT_HEADER_LENGHT = 1
 
 class WriterAndReader():
@@ -12,19 +11,19 @@ class WriterAndReader():
         firstByte = chr(msg[0])
         firstByte = ord(firstByte)
         pass
-        if firstByte == MessageType.CLIENT_NAME:
+        if firstByte == MessageType.CLIENT_NAME.value:
             return MessageType.CLIENT_NAME.value
-        elif firstByte == MessageType.IMAGE:
+        elif firstByte == MessageType.IMAGE.value:
             return MessageType.IMAGE.value
-        elif firstByte == MessageType.TEXT:
+        elif firstByte == MessageType.TEXT.value:
             return MessageType.TEXT.value
-        elif firstByte == MessageType.TEXT_TO_CLIENT:
+        elif firstByte == MessageType.TEXT_TO_CLIENT.value:
             return MessageType.TEXT_TO_CLIENT.value
-        elif firstByte == MessageType.EXIT:
+        elif firstByte == MessageType.EXIT.value:
             return MessageType.EXIT.value
-        elif firstByte == MessageType.STATUS:
+        elif firstByte == MessageType.STATUS.value:
             return MessageType.STATUS.value
-        elif firstByte ==MessageType.CLIENTS_ONLINE:
+        elif firstByte ==MessageType.CLIENTS_ONLINE.value:
             return MessageType.CLIENTS_ONLINE.value
 
 
@@ -44,25 +43,26 @@ class WriterAndReader():
         return lenght
 
     def parseMessage(self,msgType: MessageType, msg: bytearray) -> bytes:
-        if msgType == MessageType.CLIENT_NAME or msgType == MessageType.IMAGE or msgType == MessageType.TEXT or msgType ==MessageType.TEXT_TO_CLIENT or msgType == MessageType.CLIENTS_ONLINE:
+        if msgType == MessageType.CLIENT_NAME.value or msgType == MessageType.IMAGE.value or msgType == MessageType.TEXT.value or msgType ==MessageType.TEXT_TO_CLIENT.value or msgType == MessageType.CLIENTS_ONLINE.value:
             byteArray = msg[HEADER_LENGTH:]
-        elif msgType == MessageType.STATUS:
-            byteArray = msg[STATUS_HEADER_LENGTH:]
+        elif msgType == MessageType.STATUS.value:
+            byteArray = msg[HEADER_LENGTH:]
         else:
             byteArray = msg[EXIT_HEADER_LENGHT:]
         bytesMsg = bytes(byteArray)
         return bytesMsg
 
     def createMessage(self, msgType: MessageType, msg: bytearray) -> bytearray:
-        b = bytearray(1 + 4 + len(msg))
+        b = bytearray(1 + 4)
         self.writeNumber(b, msgType.value, 0)
         self.writeNumber(b, len(msg), 1)
-        offset = 1 + 4
-        idx = 0
-        while idx < len(msg):
-            b[idx + offset] = msg[idx]
-            idx += 1
-        return b
+        # offset = 1 + 4
+        # idx = 0
+        # while idx < len(msg):
+        # newByteArray = b+msg
+        retArray = b + msg
+            # idx +=1
+        return retArray
 
     def writeNumber(self, buf: bytearray, toWrite: int, position: int) -> bytearray:
         if toWrite > self.maxSize:

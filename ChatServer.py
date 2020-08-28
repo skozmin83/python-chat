@@ -22,13 +22,13 @@ class SingleClientCommandProcessor:
 
     def start(self):
         self.logger.info("start processing commands")
-        clientsMsg = b'nobody'
+        clientsMsg = b''
 
         if len(self.clients) > 0:
             clientsMsg = b''
             for client in self.clients.keys():
                 if client !=None:
-                    clientsMsg += client + b' '
+                    clientsMsg += client + b','
 
         forSend = self.writer.createMessage(Constants.MessageType.CLIENTS_ONLINE, bytearray(clientsMsg))
         self.conn.sendall(forSend)
@@ -48,40 +48,40 @@ class SingleClientCommandProcessor:
                 self.buffer+=mesBody
                 self.len = mesLen
                 self.type = mesType
-                self.logger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody)/2,len(self.buffer), mesLen))
+                self.logger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), mesLen))
             else:
                 self.buffer =b''
                 self.len = 0
                 self.type = None
-                self.logger.info('len(mesBody) = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody)/2,len(self.buffer), mesLen))
+                self.logger.info('len(mesBody) = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), mesLen))
                 if not self.onCommand(mesType, mesBody):
                     return False
         else:
             mesBody = bytearray(chunk)
             if (len(mesBody)+len(self.buffer))<self.len:
                 self.buffer+=mesBody
-                self.logger.info('len(mesBody)  = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody)/2,len(self.buffer), self.len))
+                self.logger.info('len(mesBody)  = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), self.len))
             else:
                 if not self.onCommand(self.type, mesBody):
                     self.buffer = b''
                     self.len = 0
                     self.type = None
-                    self.logger.info('len(mesBody) = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody)/2,len(self.buffer), self.len))
+                    self.logger.info('len(mesBody) = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), self.len))
                     return False
         return True
 
     def onCommand(self, command: Constants.MessageType, data: bytes) -> bool:
         self.logger.info("processing command[{}], data[{}]".format(command, data))
-        if command == Constants.MessageType.CLIENT_NAME:
+        if command == Constants.MessageType.CLIENT_NAME.value:
             self.clientName = data
             self.clients[self.clientName] = self
             self.statusUpdate(self.clientName, Constants.ClientStatus.ONLINE.value)
-        elif command == Constants.MessageType.TEXT:
+        elif command == Constants.MessageType.TEXT.value:
             messageBody = data
             self.logger.info("user [{}] says [{}]".format(self.clientName, data))
             for processor in self.clients.values():
                 processor.sendMessage(self.clientName, messageBody)
-        elif command == Constants.MessageType.TEXT_TO_CLIENT:
+        elif command == Constants.MessageType.TEXT_TO_CLIENT.value:
             toClient, ignored, messageBody = data.partition(b':')
             self.logger.info("from [{}] to [{}] message [{}]".format(self.clientName, toClient, messageBody))
             if toClient in self.clients:
@@ -92,12 +92,12 @@ class SingleClientCommandProcessor:
                     self.logger.info("client {} left our server and we can't send message to him".format(toClient))
             else:
                 self.logger.info("no client [{}] on server".format(toClient))
-        elif command == Constants.MessageType.IMAGE:
+        elif command == Constants.MessageType.IMAGE.value:
             messageBody = data
             for processor in self.clients.values():
                 if processor !=None:
                     processor.sendPicToClient(self.clientName, messageBody)
-        elif command == Constants.MessageType.EXIT:
+        elif command == Constants.MessageType.EXIT.value:
             del self.clients[self.clientName]
             return False
         else:
@@ -106,7 +106,7 @@ class SingleClientCommandProcessor:
         return True
 
     def statusUpdate(self, fromClient, newStatus: Constants):
-        if newStatus == Constants.ClientStatus.OFFLINE:
+        if newStatus == Constants.ClientStatus.OFFLINE.value:
             byteStatus = b'1'
         else:
             byteStatus = b'2'
