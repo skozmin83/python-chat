@@ -62,7 +62,8 @@ class SingleClientCommandProcessor:
                 self.buffer+=mesBody
                 self.logger.info('len(mesBody)  = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), self.len))
             else:
-                if not self.onCommand(self.type, mesBody):
+                self.buffer += mesBody
+                if not self.onCommand(self.type, self.buffer):
                     self.buffer = b''
                     self.len = 0
                     self.type = None

@@ -53,16 +53,15 @@ class WriterAndReader():
         return bytesMsg
 
     def createMessage(self, msgType: MessageType, msg: bytearray) -> bytearray:
-        b = bytearray(1 + 4)
+        b = bytearray(1 + 4 + len(msg))
         self.writeNumber(b, msgType.value, 0)
         self.writeNumber(b, len(msg), 1)
-        # offset = 1 + 4
-        # idx = 0
-        # while idx < len(msg):
-        # newByteArray = b+msg
-        retArray = b + msg
-            # idx +=1
-        return retArray
+        offset = 1 + 4
+        idx = 0
+        while idx < len(msg):
+            b[offset+idx] = msg[idx]
+            idx +=1
+        return b
 
     def writeNumber(self, buf: bytearray, toWrite: int, position: int) -> bytearray:
         if toWrite > self.maxSize:

@@ -38,12 +38,12 @@ class CommandProcessor:
             mesLen = reader.parseLen(chunkArray)
             mesBody = reader.parseMessage(mesType, chunkArray)
             if (len(mesBody) + len(self.buffer)) < mesLen:
-                chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), mesLen))
+                # chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), mesLen))
                 self.buffer += mesBody
                 self.len = mesLen
                 self.type = mesType
             else:
-                chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), mesLen))
+                # chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), mesLen))
                 self.buffer = b''
                 self.len = 0
                 self.type = None
@@ -52,11 +52,12 @@ class CommandProcessor:
         else:
             mesBody = bytearray(chunk)
             if (len(mesBody) + len(self.buffer)) < self.len:
-                chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), self.len))
+                # chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), self.len))
                 self.buffer += mesBody
             else:
-                chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), self.len))
-                if not self.onCommandClient(self.type, mesBody):
+                # chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), self.len))
+                self.buffer+=mesBody
+                if not self.onCommandClient(self.type, self.buffer):
                     self.buffer = b''
                     self.len = 0
                     self.type = None
@@ -65,7 +66,6 @@ class CommandProcessor:
 
     def onCommandClient(self, messageType: MessageType, messageBody: bytes) -> bool:
         if messageType == MessageType.CLIENTS_ONLINE.value:
-            messageBody = bytes(messageBody)
             messageBody = messageBody.decode('UTF-8')
             clientsOnline = messageBody.split(',')
             chatLogger.info('these clients are online now:')
@@ -84,7 +84,6 @@ class CommandProcessor:
             messageBody = messageBody.decode('UTF-8')
             chatLogger.info(messageBody)
         elif messageType == MessageType.IMAGE.value:
-            messageBody = bytes(messageBody)
             size = 512, 512
             img = Image.frombytes(decoder_name='raw', size=size, data=messageBody, mode='RGB')
             img.show()
