@@ -66,12 +66,15 @@ class CommandProcessor:
 
     def onCommandClient(self, messageType: MessageType, messageBody: bytes) -> bool:
         if messageType == MessageType.CLIENTS_ONLINE.value:
-            messageBody = messageBody.decode('UTF-8')
-            clientsOnline = messageBody.split(',')
-            chatLogger.info('these clients are online now:')
-            for client in clientsOnline:
-                if client != '':
-                    chatLogger.info(client)
+            if messageBody == b'':
+                chatLogger.info('nobody here')
+            else:
+                messageBody = messageBody.decode('UTF-8')
+                clientsOnline = messageBody.split(',')
+                chatLogger.info('these clients are online now:')
+                for client in clientsOnline:
+                    if client != '':
+                        chatLogger.info(client)
         elif messageType == MessageType.STATUS.value:
             status = int(chr(messageBody[TYPE_OF_STATUS]))
             messageBody = messageBody[LENGHT_OF_MESSAGE:]
