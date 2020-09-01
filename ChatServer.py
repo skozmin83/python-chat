@@ -36,7 +36,7 @@ class SingleClientCommandProcessor:
     def finish(self):
         self.logger.info("finish processing commands")
         self.statusUpdate(self.clientName, Constants.ClientStatus.OFFLINE.value)
-        self.clients[self.clientName] = None
+        del self.clients[self.clientName]
 
     def processNewChunk(self, chunk: bytes) -> bool:
         if self.buffer ==b'':
