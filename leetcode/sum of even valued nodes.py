@@ -5,15 +5,42 @@ class TreeNode:
         self.right = right
 class Solution:
     def sumEvenGrandparent(self, root: TreeNode) -> int:
+        sum = 0
+        even = False
+        sum = treeRecursion(root,even,sum)
+        return sum
+
+def treeRecursion(TreeRoot: TreeNode, even: bool, sum: int):
+    if even == True:
+        if TreeRoot.left is not None:
+            if TreeRoot.left.val != None:
+                sum+= TreeRoot.left.val
+        if TreeRoot.right is not None:
+            if TreeRoot.right.val != None:
+                sum += TreeRoot.right.val
+    if TreeRoot.val != None:
+        if TreeRoot.val %2 == 0:
+            even = True
+        else:
+            even = False
+    if TreeRoot.left is not None:
+        sum = treeRecursion(TreeRoot.left,even,sum)
+    if TreeRoot.right is not None:
+        sum = treeRecursion(TreeRoot.right,even,sum)
+    return sum
+
+
+class Solution1:
+    def sumEvenGrandparent(self, root: TreeNode) -> int:
         sum = []
         even = False
-        treeRecursion(root,even,sum)
+        treeRecursion1(root,even,sum)
         allSum =0
         for i in range(0,len(sum)):
             allSum+=sum[i]
         return allSum
 
-def treeRecursion(TreeRoot: TreeNode, even: bool, sum: list):
+def treeRecursion1(TreeRoot: TreeNode, even: bool, sum: list):
     if even == True:
         if TreeRoot.left is not None:
             if TreeRoot.left.val != None:
@@ -27,9 +54,9 @@ def treeRecursion(TreeRoot: TreeNode, even: bool, sum: list):
         else:
             even = False
     if TreeRoot.left is not None:
-        treeRecursion(TreeRoot.left,even,sum)
+        treeRecursion1(TreeRoot.left,even,sum)
     if TreeRoot.right is not None:
-        treeRecursion(TreeRoot.right,even,sum)
+        treeRecursion1(TreeRoot.right,even,sum)
 
 
 
