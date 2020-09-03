@@ -10,6 +10,7 @@ import FileReader
 from Constants import MessageType
 from Constants import ClientStatus
 from WriterAndReader import WriterAndReader
+import time
 
 logger = Logging.getLogger('client')
 chatLogger = Logging.getChatLogger('chat')
@@ -38,12 +39,12 @@ class CommandProcessor:
             mesLen = reader.parseLen(chunkArray)
             mesBody = reader.parseMessage(mesType, chunkArray)
             if (len(mesBody) + len(self.buffer)) < mesLen:
-                # chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), mesLen))
+                logger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), mesLen))
                 self.buffer += mesBody
                 self.len = mesLen
                 self.type = mesType
             else:
-                # chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), mesLen))
+                logger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), mesLen))
                 self.buffer = b''
                 self.len = 0
                 self.type = None
@@ -52,10 +53,10 @@ class CommandProcessor:
         else:
             mesBody = bytearray(chunk)
             if (len(mesBody) + len(self.buffer)) < self.len:
-                # chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), self.len))
+                logger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), self.len))
                 self.buffer += mesBody
             else:
-                # chatLogger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), self.len))
+                logger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), self.len))
                 self.buffer+=mesBody
                 if not self.onCommandClient(self.type, self.buffer):
                     self.buffer = b''
@@ -100,12 +101,14 @@ class ListenerThread(Thread):
 
     def run(self):
         try:
-            while True:
+           while True:
                 receivedData = self.s.recv(1024)
                 if not receivedData:
                     return
                 if not self.processor.clientNewChunk(receivedData):
                     return
+        except ConnectionResetError:
+            logger.info('server closed connection, please reconnect to server latter')
         except:
             logger.info('error', exc_info=True)
 
@@ -121,40 +124,46 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     root = tk.Tk()
     root.withdraw()
     while True:
-        msg = input('')
-        if 'picture:' in msg:
-            chatLogger.info('please select a picture')
-            filePath = filedialog.askopenfilename()
-            if not filePath:
-                continue
-            bytesPicture = b''
-            for bc in FileReader.bytesChunkFromFile(filePath):
-                bytesPicture+=bc
-            forSend = writer.createMessage(MessageType.IMAGE, bytesPicture)
-            s.sendall(forSend)
-        elif ':' in msg:
-            firstValue = msg[0]
-            secondValue = msg[1]
-            try:
-                int(firstValue)
-                itIsName = False
-            except:
+        try:
+            msg = input('')
+            if 'picture:' in msg:
+                chatLogger.info('please select a picture')
+                filePath = filedialog.askopenfilename()
+                if not filePath:
+                    continue
+                bytesPicture = b''
+                for bc in FileReader.bytesChunkFromFile(filePath):
+                    bytesPicture+=bc
+                forSend = writer.createMessage(MessageType.IMAGE, bytesPicture)
+                s.sendall(forSend)
+            elif ':' in msg:
+                firstValue = msg[0]
+                secondValue = msg[1]
                 try:
-                    int(secondValue)
+                    int(firstValue)
                     itIsName = False
                 except:
-                    itIsName = True
-            if msg[0] == ':' or itIsName == False:
-                forSend = writer.createMessage(MessageType.TEXT, bytearray(msg,'UTF-8'))
-                s.sendall(forSend)
+                    try:
+                        int(secondValue)
+                        itIsName = False
+                    except:
+                        itIsName = True
+                if msg[0] == ':' or itIsName == False:
+                    forSend = writer.createMessage(MessageType.TEXT, bytearray(msg,'UTF-8'))
+                    s.sendall(forSend)
+                else:
+                    forSend = writer.createMessage(MessageType.TEXT_TO_CLIENT, bytearray(msg,'UTF-8'))
+                    s.sendall(forSend)
+            elif msg == 'exit':
+                forSend = writer.createMessage(MessageType.EXIT,bytearray())
+                s.sendall (forSend)
+                break
             else:
-                forSend = writer.createMessage(MessageType.TEXT_TO_CLIENT, bytearray(msg,'UTF-8'))
+                forSend = writer.createMessage(MessageType.TEXT, bytearray(msg, 'UTF-8'))
                 s.sendall(forSend)
-        elif msg == 'exit':
-            forSend = writer.createMessage(MessageType.EXIT,bytearray())
-            s.sendall (forSend)
-            break
-        else:
-            forSend = writer.createMessage(MessageType.TEXT, bytearray(msg, 'UTF-8'))
-            s.sendall(forSend)
+        except ConnectionResetError:
+            chatLogger.info('server closed connection, please reconnect to server latter')
+        except:
+            logger.info('error',exc_info=True)
+
     logger.info('Finish client on %s:%s' % (HOST, PORT))
