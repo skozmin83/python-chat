@@ -10,7 +10,9 @@ import FileReader
 from Constants import MessageType
 from Constants import ClientStatus
 from WriterAndReader import WriterAndReader
+import io
 import time
+import psutil
 
 logger = Logging.getLogger('client')
 chatLogger = Logging.getChatLogger('chat')
@@ -88,8 +90,7 @@ class CommandProcessor:
             messageBody = messageBody.decode('UTF-8')
             chatLogger.info(messageBody)
         elif messageType == MessageType.IMAGE.value:
-            size = 512, 512
-            img = Image.frombytes(decoder_name='raw', size=size, data=messageBody, mode='RGB')
+            img = Image.open(io.BytesIO(messageBody))
             img.show()
         return True
 

@@ -64,11 +64,12 @@ class SingleClientCommandProcessor:
             else:
                 self.buffer += mesBody
                 if not self.onCommand(self.type, self.buffer):
+                    return False
+                else:
                     self.buffer = b''
                     self.len = 0
                     self.type = None
                     self.logger.info('len(mesBody) = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), self.len))
-                    return False
         return True
 
     def onCommand(self, command: Constants.MessageType, data: bytes) -> bool:
