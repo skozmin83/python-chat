@@ -61,10 +61,11 @@ class CommandProcessor:
                 logger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), self.len))
                 self.buffer+=mesBody
                 if not self.onCommandClient(self.type, self.buffer):
+                    return False
+                else:
                     self.buffer = b''
                     self.len = 0
                     self.type = None
-                    return False
         return True
 
     def onCommandClient(self, messageType: MessageType, messageBody: bytes) -> bool:
