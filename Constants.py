@@ -12,3 +12,5 @@ class MessageType(Enum):
     EXIT = 5
     STATUS = 6
     CLIENTS_ONLINE = 7
+    IMAGE_TO_CLIENT =8
+    RECEIVER = 9

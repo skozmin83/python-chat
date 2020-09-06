@@ -12,7 +12,6 @@ from Constants import ClientStatus
 from WriterAndReader import WriterAndReader
 import io
 import time
-import psutil
 
 logger = Logging.getLogger('client')
 chatLogger = Logging.getChatLogger('chat')
@@ -32,6 +31,7 @@ class CommandProcessor:
         self.buffer = b''
         self.type = None
         self.len = 0
+        self.savedPicture = b''
 
     def clientNewChunk(self, chunk: bytes):
         if self.buffer == b'':
@@ -60,12 +60,18 @@ class CommandProcessor:
             else:
                 logger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), self.len))
                 self.buffer+=mesBody
-                if not self.onCommandClient(self.type, self.buffer):
-                    return False
-                else:
+                if self.type == MessageType.IMAGE_TO_CLIENT.value:
+                    self.savedPicture = self.buffer
                     self.buffer = b''
                     self.len = 0
                     self.type = None
+                else:
+                    if not self.onCommandClient(self.type, self.buffer):
+                        return False
+                    else:
+                        self.buffer = b''
+                        self.len = 0
+                        self.type = None
         return True
 
     def onCommandClient(self, messageType: MessageType, messageBody: bytes) -> bool:
@@ -133,11 +139,23 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 filePath = filedialog.askopenfilename()
                 if not filePath:
                     continue
+                chatLogger.info('If you want send picture to someone enter "name" and press enter, if you want send message to everyone press enter without name')
+                pictureToClient = input('')
+                pictureToClient = bytes(pictureToClient,'UTF-8')
                 bytesPicture = b''
                 for bc in FileReader.bytesChunkFromFile(filePath):
                     bytesPicture+=bc
-                forSend = writer.createMessage(MessageType.IMAGE, bytesPicture)
-                s.sendall(forSend)
+                if pictureToClient == b'':
+                    forSend = writer.createMessage(MessageType.IMAGE, bytesPicture)
+                    s.sendall(forSend)
+                else:
+                    forSend = writer.createMessage(MessageType.IMAGE_TO_CLIENT,bytesPicture)
+                    s.sendall(forSend)
+                sizeOfPicture = len(bytesPicture)
+                waiting = int(sizeOfPicture/1000000*60/10*2)+1
+                time.sleep(waiting)
+                nameForSend = writer.createMessage(MessageType.RECEIVER,bytearray(pictureToClient))
+                s.sendall(nameForSend)
             elif ':' in msg:
                 firstValue = msg[0]
                 secondValue = msg[1]

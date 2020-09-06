@@ -19,6 +19,7 @@ class SingleClientCommandProcessor:
         self.len = 0
         self.type = None
         self.writer = WriterAndReader()
+        self.savedPicture = b''
 
     def start(self):
         self.logger.info("start processing commands")
@@ -50,7 +51,7 @@ class SingleClientCommandProcessor:
                 self.type = mesType
                 self.logger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), mesLen))
             else:
-                self.buffer =b''
+                self.buffer = b''
                 self.len = 0
                 self.type = None
                 self.logger.info('len(mesBody) = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), mesLen))
@@ -63,13 +64,19 @@ class SingleClientCommandProcessor:
                 self.logger.info('len(mesBody)  = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), self.len))
             else:
                 self.buffer += mesBody
-                if not self.onCommand(self.type, self.buffer):
-                    return False
-                else:
+                if self.type == Constants.MessageType.IMAGE_TO_CLIENT.value:
+                    self.savedPicture = self.buffer
                     self.buffer = b''
                     self.len = 0
                     self.type = None
-                    self.logger.info('len(mesBody) = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), self.len))
+                else:
+                    if not self.onCommand(self.type, self.buffer):
+                        return False
+                    else:
+                        self.buffer = b''
+                        self.len = 0
+                        self.type = None
+                        self.logger.info('len(mesBody) = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), self.len))
         return True
 
     def onCommand(self, command: Constants.MessageType, data: bytes) -> bool:
@@ -98,7 +105,20 @@ class SingleClientCommandProcessor:
             messageBody = data
             for processor in self.clients.values():
                 if processor !=None:
-                    processor.sendPicToClient(self.clientName, messageBody)
+                    processor.sendPic(self.clientName, messageBody)
+        elif command == Constants.MessageType.RECEIVER.value:
+            toClient = data
+            messageBody = self.savedPicture
+            self.savedPicture = b''
+            self.logger.info("from [{}] to [{}] picture [{}]".format(self.clientName, toClient, messageBody))
+            if toClient in self.clients:
+                if self.clients[toClient] != None:
+                    self.clients[toClient].sendPic(self.clientName, messageBody)
+                else:
+                    toClient = toClient.decode('UTF-8')
+                    self.logger.info("client {} left our server and we can't send message to him".format(toClient))
+            else:
+                self.logger.info("no client [{}] on server".format(toClient))
         elif command == Constants.MessageType.EXIT.value:
             del self.clients[self.clientName]
             return False
@@ -131,7 +151,7 @@ class SingleClientCommandProcessor:
         if self.clientName != fromClient:
             self.conn.sendall(forSend)
 
-    def sendPicToClient(self, fromClient: bytes, pic: bytes):
+    def sendPic(self, fromClient: bytes, pic: bytes):
         forSend = self.writer.createMessage(Constants.MessageType.IMAGE, bytearray(pic))
         if self.clientName != fromClient:
             self.conn.sendall(forSend)

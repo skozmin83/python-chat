@@ -25,6 +25,10 @@ class WriterAndReader():
             return MessageType.STATUS.value
         elif firstByte ==MessageType.CLIENTS_ONLINE.value:
             return MessageType.CLIENTS_ONLINE.value
+        elif firstByte ==MessageType.IMAGE_TO_CLIENT.value:
+            return MessageType.IMAGE_TO_CLIENT.value
+        elif firstByte == MessageType.RECEIVER.value:
+            return MessageType.RECEIVER.value
 
 
 
@@ -43,9 +47,7 @@ class WriterAndReader():
         return lenght
 
     def parseMessage(self,msgType: MessageType, msg: bytearray) -> bytes:
-        if msgType == MessageType.CLIENT_NAME.value or msgType == MessageType.IMAGE.value or msgType == MessageType.TEXT.value or msgType ==MessageType.TEXT_TO_CLIENT.value or msgType == MessageType.CLIENTS_ONLINE.value:
-            byteArray = msg[HEADER_LENGTH:]
-        elif msgType == MessageType.STATUS.value:
+        if msgType != MessageType.EXIT.value:
             byteArray = msg[HEADER_LENGTH:]
         else:
             byteArray = msg[EXIT_HEADER_LENGHT:]
