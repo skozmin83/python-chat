@@ -12,6 +12,7 @@ from Constants import ClientStatus
 from WriterAndReader import WriterAndReader
 import io
 import time
+from CreatePicture import CreatePicture
 
 logger = Logging.getLogger('client')
 chatLogger = Logging.getChatLogger('chat')
@@ -107,6 +108,7 @@ class ListenerThread(Thread):
         self.processor = processor
         self.s = s
 
+
     def run(self):
         try:
            while True:
@@ -136,25 +138,17 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             msg = input('')
             if 'picture:' in msg:
                 chatLogger.info('please select a picture')
-                filePath = filedialog.askopenfilename()
-                if not filePath:
+                create = CreatePicture()
+                pathToPicture = create.openPicture()
+                if pathToPicture == False:
                     continue
                 chatLogger.info('If you want send picture to someone enter "name" and press enter, if you want send message to everyone press enter without name')
                 pictureToClient = input('')
-                pictureToClient = bytes(pictureToClient,'UTF-8')
-                bytesPicture = b''
-                for bc in FileReader.bytesChunkFromFile(filePath):
-                    bytesPicture+=bc
-                if pictureToClient == b'':
-                    forSend = writer.createMessage(MessageType.IMAGE, bytesPicture)
-                    s.sendall(forSend)
-                else:
-                    forSend = writer.createMessage(MessageType.IMAGE_TO_CLIENT,bytesPicture)
-                    s.sendall(forSend)
-                sizeOfPicture = len(bytesPicture)
-                waiting = int(sizeOfPicture/1000000*60/10*2)+1
+                forSend = create.sendPicToClient(pictureToClient, pathToPicture)
+                s.sendall(forSend)
+                waiting = 60
                 time.sleep(waiting)
-                nameForSend = writer.createMessage(MessageType.RECEIVER,bytearray(pictureToClient))
+                nameForSend = create.sendNameOfReceiver(pictureToClient)
                 s.sendall(nameForSend)
             elif ':' in msg:
                 firstValue = msg[0]
