@@ -13,6 +13,7 @@ from WriterAndReader import WriterAndReader
 import io
 import time
 from CreatePicture import CreatePicture
+from CreateText import CreateText
 
 logger = Logging.getLogger('client')
 chatLogger = Logging.getChatLogger('chat')
@@ -151,23 +152,9 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 nameForSend = create.sendNameOfReceiver(pictureToClient)
                 s.sendall(nameForSend)
             elif ':' in msg:
-                firstValue = msg[0]
-                secondValue = msg[1]
-                try:
-                    int(firstValue)
-                    itIsName = False
-                except:
-                    try:
-                        int(secondValue)
-                        itIsName = False
-                    except:
-                        itIsName = True
-                if msg[0] == ':' or itIsName == False:
-                    forSend = writer.createMessage(MessageType.TEXT, bytearray(msg,'UTF-8'))
-                    s.sendall(forSend)
-                else:
-                    forSend = writer.createMessage(MessageType.TEXT_TO_CLIENT, bytearray(msg,'UTF-8'))
-                    s.sendall(forSend)
+                create = CreateText()
+                forSend = create.determineNameOfClient(msg)
+                s.sendall(forSend)
             elif msg == 'exit':
                 forSend = writer.createMessage(MessageType.EXIT,bytearray())
                 s.sendall (forSend)
