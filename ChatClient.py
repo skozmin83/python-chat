@@ -149,57 +149,58 @@ class CreateSocket():
         listenThread = ListenerThread(cp,s)
         listenThread.start()
 
-
-createS = CreateSocket()
-s = createS.createSocket(HOST, PORT, name)
-listenerThread = createS.createListenerThread(s)
-toClient = ''
-writer = WriterAndReader()
-chatLogger.info('If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
-root = tk.Tk()
-root.withdraw()
-processor = CommandProcessor()
-while True:
-    while True:
-        try:
-            if processor.alive == False:
-                break
-            msg = input('')
-            if 'picture:' in msg:
-                chatLogger.info('please select a picture')
-                create = CreatePicture()
-                pathToPicture = create.openPicture()
-                if pathToPicture == False:
-                    continue
-                chatLogger.info('If you want send picture to someone enter "name" and press enter, if you want send message to everyone press enter without name')
-                pictureToClient = input('')
-                forSend = create.sendPicToClient(pictureToClient, pathToPicture)
-                s.sendall(forSend)
-                waiting = 60
-                time.sleep(waiting)
-                nameForSend = create.sendNameOfReceiver(pictureToClient)
-                s.sendall(nameForSend)
-            elif ':' in msg:
-                create = CreateText()
-                forSend = create.determineNameOfClient(msg)
-                s.sendall(forSend)
-            elif msg == 'exit':
-                forSend = writer.createMessage(MessageType.EXIT,bytearray())
-                s.sendall (forSend)
-                break
-            else:
-                forSend = writer.createMessage(MessageType.TEXT, bytearray(msg, 'UTF-8'))
-                s.sendall(forSend)
-        except ConnectionResetError:
-            logger.info('server closed connection')
-            LOCK.acquire()
-            try:
-                processor.alive = False
-            finally:
-                LOCK.release()
-            break
-        except:
-            logger.info('error',exc_info=True)
-            break
-
-    logger.info('Finish client on %s:%s' % (HOST, PORT))
+class Main():
+    def mainChatFunction (self):
+        createS = CreateSocket()
+        s = createS.createSocket(HOST, PORT, name)
+        createS.createListenerThread(s)
+        writer = WriterAndReader()
+        chatLogger.info('If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
+        root = tk.Tk()
+        root.withdraw()
+        processor = CommandProcessor()
+        while True:
+            while True:
+                try:
+                    if processor.alive == False:
+                        break
+                    msg = input('')
+                    if 'picture:' in msg:
+                        chatLogger.info('please select a picture')
+                        create = CreatePicture()
+                        pathToPicture = create.openPicture()
+                        if pathToPicture == False:
+                            continue
+                        chatLogger.info('If you want send picture to someone enter "name" and press enter, if you want send message to everyone press enter without name')
+                        pictureToClient = input('')
+                        forSend = create.sendPicToClient(pictureToClient, pathToPicture)
+                        s.sendall(forSend)
+                        waiting = 60
+                        time.sleep(waiting)
+                        nameForSend = create.sendNameOfReceiver(pictureToClient)
+                        s.sendall(nameForSend)
+                    elif ':' in msg:
+                        create = CreateText()
+                        forSend = create.determineNameOfClient(msg)
+                        s.sendall(forSend)
+                    elif msg == 'exit':
+                        forSend = writer.createMessage(MessageType.EXIT,bytearray())
+                        s.sendall (forSend)
+                        break
+                    else:
+                        forSend = writer.createMessage(MessageType.TEXT, bytearray(msg, 'UTF-8'))
+                        s.sendall(forSend)
+                except ConnectionResetError:
+                    logger.info('server closed connection')
+                    LOCK.acquire()
+                    try:
+                        processor.alive = False
+                    finally:
+                        LOCK.release()
+                    break
+                except:
+                    logger.info('error',exc_info=True)
+                    break
+                logger.info('Finish client on %s:%s' % (HOST, PORT))
+main = Main()
+main.mainChatFunction()
