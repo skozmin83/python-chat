@@ -12,6 +12,7 @@ import io
 import time
 from CreatePicture import CreatePicture
 from CreateText import CreateText
+from threading import RLock
 
 logger = Logging.getLogger('client')
 chatLogger = Logging.getChatLogger('chat')
@@ -19,6 +20,7 @@ HOST = '127.0.0.1'  # The server's hostname or IP address
 PORT = 12346  # The port used by the server
 TYPE_OF_STATUS = 0
 LENGHT_OF_MESSAGE =1
+LOCK = RLock()
 
 if len(sys.argv) < 2:
     logger.info('Error! Need a this client name argument as arg #1!')
@@ -32,6 +34,7 @@ class CommandProcessor:
         self.type = None
         self.len = 0
         self.savedPicture = b''
+        self.alive = True
 
     def clientNewChunk(self, chunk: bytes):
         if self.buffer == b'':
@@ -109,17 +112,27 @@ class ListenerThread(Thread):
 
 
     def run(self):
-        try:
-           while True:
-                receivedData = self.s.recv(1024)
-                if not receivedData:
-                    return
-                if not self.processor.clientNewChunk(receivedData):
-                    return
-        except ConnectionResetError:
-            logger.info('server closed connection, please reconnect to server latter')
-        except:
-            logger.info('error', exc_info=True)
+        while True:
+            try:
+               while True:
+                    if self.processor.alive == False:
+                        break
+                    receivedData = self.s.recv(1024)
+                    if not receivedData:
+                        return
+                    if not self.processor.clientNewChunk(receivedData):
+                        return
+            except ConnectionResetError:
+                logger.info('server closed connection')
+                LOCK.acquire()
+                try:
+                    processor.alive = False
+                finally:
+                    LOCK.release()
+                break
+            except:
+                logger.info('error', exc_info=True)
+
 
 class CreateSocket():
 
@@ -136,6 +149,7 @@ class CreateSocket():
         listenThread = ListenerThread(cp,s)
         listenThread.start()
 
+
 createS = CreateSocket()
 s = createS.createSocket(HOST, PORT, name)
 listenerThread = createS.createListenerThread(s)
@@ -144,37 +158,48 @@ writer = WriterAndReader()
 chatLogger.info('If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
 root = tk.Tk()
 root.withdraw()
+processor = CommandProcessor()
 while True:
-    try:
-        msg = input('')
-        if 'picture:' in msg:
-            chatLogger.info('please select a picture')
-            create = CreatePicture()
-            pathToPicture = create.openPicture()
-            if pathToPicture == False:
-                continue
-            chatLogger.info('If you want send picture to someone enter "name" and press enter, if you want send message to everyone press enter without name')
-            pictureToClient = input('')
-            forSend = create.sendPicToClient(pictureToClient, pathToPicture)
-            s.sendall(forSend)
-            waiting = 60
-            time.sleep(waiting)
-            nameForSend = create.sendNameOfReceiver(pictureToClient)
-            s.sendall(nameForSend)
-        elif ':' in msg:
-            create = CreateText()
-            forSend = create.determineNameOfClient(msg)
-            s.sendall(forSend)
-        elif msg == 'exit':
-            forSend = writer.createMessage(MessageType.EXIT,bytearray())
-            s.sendall (forSend)
+    while True:
+        try:
+            if processor.alive == False:
+                break
+            msg = input('')
+            if 'picture:' in msg:
+                chatLogger.info('please select a picture')
+                create = CreatePicture()
+                pathToPicture = create.openPicture()
+                if pathToPicture == False:
+                    continue
+                chatLogger.info('If you want send picture to someone enter "name" and press enter, if you want send message to everyone press enter without name')
+                pictureToClient = input('')
+                forSend = create.sendPicToClient(pictureToClient, pathToPicture)
+                s.sendall(forSend)
+                waiting = 60
+                time.sleep(waiting)
+                nameForSend = create.sendNameOfReceiver(pictureToClient)
+                s.sendall(nameForSend)
+            elif ':' in msg:
+                create = CreateText()
+                forSend = create.determineNameOfClient(msg)
+                s.sendall(forSend)
+            elif msg == 'exit':
+                forSend = writer.createMessage(MessageType.EXIT,bytearray())
+                s.sendall (forSend)
+                break
+            else:
+                forSend = writer.createMessage(MessageType.TEXT, bytearray(msg, 'UTF-8'))
+                s.sendall(forSend)
+        except ConnectionResetError:
+            logger.info('server closed connection')
+            LOCK.acquire()
+            try:
+                processor.alive = False
+            finally:
+                LOCK.release()
             break
-        else:
-            forSend = writer.createMessage(MessageType.TEXT, bytearray(msg, 'UTF-8'))
-            s.sendall(forSend)
-    except ConnectionResetError:
-        chatLogger.info('server closed connection, please reconnect to server latter')
-    except:
-        logger.info('error',exc_info=True)
+        except:
+            logger.info('error',exc_info=True)
+            break
 
-logger.info('Finish client on %s:%s' % (HOST, PORT))
+    logger.info('Finish client on %s:%s' % (HOST, PORT))
