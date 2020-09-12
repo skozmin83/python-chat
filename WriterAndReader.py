@@ -4,7 +4,10 @@ HEADER_LENGTH = 5
 EXIT_HEADER_LENGHT = 1
 
 class WriterAndReader():
+
     maxSize = 2 ** 32
+    maxSizeForReceiver = 2**8
+    maxSizeForPicture = 2**24
     oneByteMask = 2 ** 8 - 1
 
     def parseMessageType(self, msg: bytearray) -> MessageType:
@@ -27,10 +30,27 @@ class WriterAndReader():
             return MessageType.CLIENTS_ONLINE.value
         elif firstByte ==MessageType.IMAGE_TO_CLIENT.value:
             return MessageType.IMAGE_TO_CLIENT.value
-        elif firstByte == MessageType.RECEIVER.value:
-            return MessageType.RECEIVER.value
 
 
+    def parseLenReceiver(self, msg:bytearray) -> int:
+        numberWithMask = msg[1] & self.oneByteMask
+        lenght = int(numberWithMask)
+        return lenght
+
+
+    def parseLenPicrture(self, msg:bytearray) -> int:
+        savedNumber = 0
+        lenght = 0
+        for i in range(2,5):
+            if msg[i] !=0:
+                numberWithMask = msg[i] & self.oneByteMask
+                if savedNumber !=0:
+                    numberWithMask = savedNumber | numberWithMask
+                if i !=4:
+                    numberWithMask = numberWithMask << 8
+                    savedNumber = numberWithMask
+                lenght = int(numberWithMask)
+        return lenght
 
     def parseLen(self, msg:bytearray) -> int:
         savedNumber = 0
@@ -54,6 +74,18 @@ class WriterAndReader():
         bytesMsg = bytes(byteArray)
         return bytesMsg
 
+    def parsePictureReceiver(self, msg: bytearray, lenOfName: int) -> bytes:
+        delHeader = msg[HEADER_LENGTH:]
+        name = delHeader[:lenOfName*2]
+        ret = bytes(name)
+        return ret
+
+    def parsePicture(self, msg: bytearray, lenOfName: int) -> bytes:
+        delHeader = msg[HEADER_LENGTH:]
+        pic = delHeader[lenOfName*2:]
+        ret = bytes(pic)
+        return ret
+
     def createMessage(self, msgType: MessageType, msg: bytearray) -> bytearray:
         b = bytearray(1 + 4 + len(msg))
         self.writeNumber(b, msgType.value, 0)
@@ -64,6 +96,46 @@ class WriterAndReader():
             b[offset+idx] = msg[idx]
             idx +=1
         return b
+
+    def createPicture(self, msgType: MessageType, msg: bytearray, clientName:bytearray) -> bytearray:
+        b = bytearray(1 + 1 + 3 + len(msg) + len(clientName))
+        self.writeNumberPicture(b, msgType.value, 0)
+        if len(clientName)> self.maxSizeForReceiver:
+            raise RuntimeError("Size of {} is too big".format(len(clientName)))
+        if len(msg)> self.maxSizeForPicture:
+            raise RuntimeError("Size of {} is too big".format(len(msg)))
+        self.writeNumberPicture(b, len(clientName), 1)
+        self.writeNumberPicture(b,len(msg),1)
+        offset = 1 + 1 + 3
+        idx = 0
+        while idx < len(clientName):
+            b[offset+idx] = clientName[idx]
+            idx +=1
+        index = 0
+        while idx < len(msg)+len(clientName):
+            b[idx] = msg[index]
+            idx +=1
+            index+=1
+        return b
+
+    def writeNumberPicture(self, buf: bytearray, toWrite: int, position: int) -> bytearray:
+        if toWrite > self.maxSize:
+            raise RuntimeError("Size of {} is too big. Max size {}".format(toWrite, position))
+        curNum = toWrite
+        step = 3
+        if buf[0] != 0 and buf[1] !=0:
+            while curNum > 0:
+                curByte = curNum & self.oneByteMask
+                buf[position + step] = curByte
+                curNum = curNum >> 8
+                step -= 1
+        else:
+            if buf[0] ==0:
+                buf[0] = toWrite
+            elif buf[1] ==0:
+                buf[1] = toWrite
+        return buf
+
 
     def writeNumber(self, buf: bytearray, toWrite: int, position: int) -> bytearray:
         if toWrite > self.maxSize:
@@ -80,16 +152,17 @@ class WriterAndReader():
             buf[0] = toWrite
             return buf
 
-    # def readNumber(self, buf: bytearray, position: int, numberOfBytes:int) -> int:
-    #     pass
 
-# sol = WriterAndReader()
-# sol.writeNumber(bytearray(b'\x01\x00\x00\x00\x00\x00'), 1324, 1)
+sol = WriterAndReader()
+# sol.createMessage(MessageType.IMAGE,msg=bytearray(b'\x01\x00\x00\x00\x05\x00t\x00a\x00n\x00y\x00a'))
+# sol.createPicture(MessageType.IMAGE_TO_CLIENT,bytearray(5),bytearray(b'\x00t\x00a\x00n\x00y\x00a'))
+# sol.writeNumberPicture(bytearray(b'\x01\x00\x00\x00\x00\x00'), 1324, 1)
 # sol.parseLen(msg=bytearray(b'\x01\x00\x00\x05\x06\x00t\x00a\x00n\x00y\x00a'))
 # buf = bytearray(100)
 # # sol.writeNumber(buf, 12, 1)
 # mes = sol.createMessage(msgType=MessageType.CLIENT_NAME, msg=bytearray('tanya','UTF-8'))
-# sol.parseMessage(MessageType.CLIENT_NAME,5,mes)
+# sol.parsePicture(bytearray(b'\x01\x00\x00\x00\x05\x00t\x00a\x00n\x00y\x00a'),1)
+# sol.parsePictureReceiver(bytearray(b'\x01\x00\x00\x00\x05\x00t\x00a\x00n\x00y\x00a'),1)
 # print(sol.writeNumber(buf, 16777219, 1)) #bytearray(b'\x00\x01\x00\x00\x01\x00\
 # sol.writeNumber(buf, 1234, 1)
 # sol.parseMessage(msgType=MessageType.CLIENT_NAME,msg=bytearray(b'\x01\x00\x00\x00\x05\x00t\x00a\x00n\x00y\x00a'))

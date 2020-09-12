@@ -19,7 +19,7 @@ class SingleClientCommandProcessor:
         self.len = 0
         self.type = None
         self.writer = WriterAndReader()
-        self.savedPicture = b''
+        self.savedReceiver = b''
 
     def start(self):
         self.logger.info("start processing commands")
@@ -43,8 +43,15 @@ class SingleClientCommandProcessor:
         if self.buffer ==b'':
             chunkArray = bytearray(chunk)
             mesType = self.writer.parseMessageType(chunkArray)
-            mesLen = self.writer.parseLen(chunkArray)
-            mesBody = self.writer.parseMessage(mesType,chunkArray)
+            if mesType == Constants.MessageType.IMAGE_TO_CLIENT:
+                nameLen = self.writer.parseLenReceiver(chunkArray)
+                mesLen = self.writer.parseLenPicrture(chunkArray)
+                mesName = self.writer.parsePictureReceiver(chunkArray,nameLen)
+                mesBody = self.writer.parsePicture(chunkArray,nameLen)
+                self.savedReceiver = mesName
+            else:
+                mesLen = self.writer.parseLen(chunkArray)
+                mesBody = self.writer.parseMessage(mesType,chunkArray)
             if (len(mesBody)+len(self.buffer))<mesLen:
                 self.buffer+=mesBody
                 self.len = mesLen
@@ -106,10 +113,10 @@ class SingleClientCommandProcessor:
             for processor in self.clients.values():
                 if processor !=None:
                     processor.sendPic(self.clientName, messageBody)
-        elif command == Constants.MessageType.RECEIVER.value:
-            toClient = data
-            messageBody = self.savedPicture
-            self.savedPicture = b''
+        elif command == Constants.MessageType.IMAGE_TO_CLIENT.value:
+            toClient = self.savedReceiver
+            self.savedReceiver = b''
+            messageBody = data
             self.logger.info("from [{}] to [{}] picture [{}]".format(self.clientName, toClient, messageBody))
             if toClient in self.clients:
                 if self.clients[toClient] != None:

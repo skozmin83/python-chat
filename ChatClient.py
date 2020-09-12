@@ -157,6 +157,7 @@ class Main():
         createS.createListenerThread(s)
         writer = WriterAndReader()
         chatLogger.info('If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
+        chatLogger.info('If you want send picture to someone enter "name: picture:" and press enter, if you want send picture to everyone press enter without name')
         root = tk.Tk()
         root.withdraw()
         processor = CommandProcessor()
@@ -169,19 +170,17 @@ class Main():
                         break
                     msg = input('')
                     if 'picture:' in msg:
-                        chatLogger.info('please select a picture')
                         create = CreatePicture()
+                        toClient = create.nameOfReceiver(msg)
+                        chatLogger.info('please select a picture')
                         pathToPicture = create.openPicture()
                         if pathToPicture == False:
                             continue
-                        chatLogger.info('If you want send picture to someone enter "name" and press enter, if you want send message to everyone press enter without name')
-                        pictureToClient = input('')
-                        forSend = create.sendPicToClient(pictureToClient, pathToPicture)
+                        if toClient == False:
+                            forSend = create.sendPicture(pathToPicture)
+                        else:
+                            forSend = create.sendPicToClient(toClient, pathToPicture)
                         s.sendall(forSend)
-                        waiting = 60
-                        time.sleep(waiting)
-                        nameForSend = create.sendNameOfReceiver(pictureToClient)
-                        s.sendall(nameForSend)
                     elif ':' in msg:
                         create = CreateText()
                         forSend = create.determineNameOfClient(msg)

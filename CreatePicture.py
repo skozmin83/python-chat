@@ -15,15 +15,27 @@ class CreatePicture():
         bytesPicture = b''
         for bc in FileReader.bytesChunkFromFile(filePath):
             bytesPicture+=bc
-        if clientName == '':
-            forSend = writer.createMessage(MessageType.IMAGE, bytesPicture)
-        else:
-            forSend = writer.createMessage(MessageType.IMAGE_TO_CLIENT,bytesPicture)
+        forSend = writer.createPicture(MessageType.IMAGE_TO_CLIENT,bytesPicture, bytearray(clientName,'UTF-8'))
         return forSend
 
-    def sendNameOfReceiver(self, clientName: str):
+    def nameOfReceiver(self, msg: str):
+        list = msg.split(':')
+        if len(list)>2:
+            return list[0]
+        else:
+            return False
+
+    def sendPicture(self, filePath:str):
         writer = WriterAndReader()
-        clientName = bytes(clientName, 'UTF-8')
-        nameForSend = writer.createMessage(MessageType.RECEIVER, bytearray(clientName))
-        return nameForSend
+        bytesPicture = b''
+        for bc in FileReader.bytesChunkFromFile(filePath):
+            bytesPicture += bc
+        forSend = writer.createMessage(MessageType.IMAGE, bytesPicture)
+        return forSend
+
+
+# sol =CreatePicture()
+# sol.nameOfReceiver('rada: picture:')
+# sol.nameOfReceiver(':picture')
+# sol.nameOfReceiver('picture:')
 
