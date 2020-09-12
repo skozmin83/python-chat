@@ -126,12 +126,13 @@ class ListenerThread(Thread):
                 logger.info('server closed connection')
                 LOCK.acquire()
                 try:
-                    processor.alive = False
+                   self.processor.alive = False
                 finally:
                     LOCK.release()
                 break
             except:
                 logger.info('error', exc_info=True)
+                break
 
 
 class CreateSocket():
@@ -159,6 +160,8 @@ class Main():
         root = tk.Tk()
         root.withdraw()
         processor = CommandProcessor()
+        processor.alive = True
+        breakFromLoop = False
         while True:
             while True:
                 try:
@@ -186,6 +189,7 @@ class Main():
                     elif msg == 'exit':
                         forSend = writer.createMessage(MessageType.EXIT,bytearray())
                         s.sendall (forSend)
+                        breakFromLoop = True
                         break
                     else:
                         forSend = writer.createMessage(MessageType.TEXT, bytearray(msg, 'UTF-8'))
@@ -197,10 +201,19 @@ class Main():
                         processor.alive = False
                     finally:
                         LOCK.release()
+                        breakFromLoop = True
                     break
                 except:
                     logger.info('error',exc_info=True)
+                    breakFromLoop = True
                     break
                 logger.info('Finish client on %s:%s' % (HOST, PORT))
+            if breakFromLoop == True:
+                break
+        if processor.alive == False:
+            s.close()
+            time.sleep(1)
+            nextMain = Main()
+            nextMain.mainChatFunction()
 main = Main()
 main.mainChatFunction()
