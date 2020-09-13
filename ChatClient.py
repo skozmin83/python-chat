@@ -33,7 +33,6 @@ class CommandProcessor:
         self.buffer = b''
         self.type = None
         self.len = 0
-        self.savedPicture = b''
         self.alive = True
 
     def clientNewChunk(self, chunk: bytes):
@@ -63,18 +62,11 @@ class CommandProcessor:
             else:
                 logger.info('len(mesBody) = {},len(buffer) = {}, mesLen = {}'.format(len(mesBody), len(self.buffer), self.len))
                 self.buffer+=mesBody
-                if self.type == MessageType.IMAGE_TO_CLIENT.value:
-                    self.savedPicture = self.buffer
-                    self.buffer = b''
-                    self.len = 0
-                    self.type = None
-                else:
-                    if not self.onCommandClient(self.type, self.buffer):
-                        return False
-                    else:
-                        self.buffer = b''
-                        self.len = 0
-                        self.type = None
+                if not self.onCommandClient(self.type, self.buffer):
+                    return False
+                self.buffer = b''
+                self.len = 0
+                self.type = None
         return True
 
     def onCommandClient(self, messageType: MessageType, messageBody: bytes) -> bool:

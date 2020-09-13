@@ -37,13 +37,14 @@ class SingleClientCommandProcessor:
     def finish(self):
         self.logger.info("finish processing commands")
         self.statusUpdate(self.clientName, Constants.ClientStatus.OFFLINE.value)
-        del self.clients[self.clientName]
+        if self.clientName in self.clients:
+            del self.clients[self.clientName]
 
     def processNewChunk(self, chunk: bytes) -> bool:
         if self.buffer ==b'':
             chunkArray = bytearray(chunk)
             mesType = self.writer.parseMessageType(chunkArray)
-            if mesType == Constants.MessageType.IMAGE_TO_CLIENT:
+            if mesType == Constants.MessageType.IMAGE_TO_CLIENT.value:
                 nameLen = self.writer.parseLenReceiver(chunkArray)
                 mesLen = self.writer.parseLenPicrture(chunkArray)
                 mesName = self.writer.parsePictureReceiver(chunkArray,nameLen)
@@ -71,19 +72,12 @@ class SingleClientCommandProcessor:
                 self.logger.info('len(mesBody)  = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), self.len))
             else:
                 self.buffer += mesBody
-                if self.type == Constants.MessageType.IMAGE_TO_CLIENT.value:
-                    self.savedPicture = self.buffer
-                    self.buffer = b''
-                    self.len = 0
-                    self.type = None
-                else:
-                    if not self.onCommand(self.type, self.buffer):
-                        return False
-                    else:
-                        self.buffer = b''
-                        self.len = 0
-                        self.type = None
-                        self.logger.info('len(mesBody) = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), self.len))
+                if not self.onCommand(self.type, self.buffer):
+                    return False
+                self.buffer = b''
+                self.len = 0
+                self.type = None
+                self.logger.info('len(mesBody) = {}, len(buffer) = {}, mesLen = {}'.format(len(mesBody),len(self.buffer), self.len))
         return True
 
     def onCommand(self, command: Constants.MessageType, data: bytes) -> bool:

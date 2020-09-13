@@ -76,13 +76,13 @@ class WriterAndReader():
 
     def parsePictureReceiver(self, msg: bytearray, lenOfName: int) -> bytes:
         delHeader = msg[HEADER_LENGTH:]
-        name = delHeader[:lenOfName*2]
+        name = delHeader[:lenOfName]
         ret = bytes(name)
         return ret
 
     def parsePicture(self, msg: bytearray, lenOfName: int) -> bytes:
         delHeader = msg[HEADER_LENGTH:]
-        pic = delHeader[lenOfName*2:]
+        pic = delHeader[lenOfName:]
         ret = bytes(pic)
         return ret
 
@@ -112,7 +112,8 @@ class WriterAndReader():
             b[offset+idx] = clientName[idx]
             idx +=1
         index = 0
-        while idx < len(msg)+len(clientName):
+        idx +=5
+        while index < len(msg):
             b[idx] = msg[index]
             idx +=1
             index+=1
@@ -153,9 +154,9 @@ class WriterAndReader():
             return buf
 
 
-sol = WriterAndReader()
+# sol = WriterAndReader()
 # sol.createMessage(MessageType.IMAGE,msg=bytearray(b'\x01\x00\x00\x00\x05\x00t\x00a\x00n\x00y\x00a'))
-# sol.createPicture(MessageType.IMAGE_TO_CLIENT,bytearray(5),bytearray(b'\x00t\x00a\x00n\x00y\x00a'))
+# sol.createPicture(MessageType.IMAGE_TO_CLIENT,bytearray(b'\x00p\x00i\x00c\x00t\x00u\x00r\x00e'),bytearray(b'\x00t\x00a\x00n\x00y\x00a'))
 # sol.writeNumberPicture(bytearray(b'\x01\x00\x00\x00\x00\x00'), 1324, 1)
 # sol.parseLen(msg=bytearray(b'\x01\x00\x00\x05\x06\x00t\x00a\x00n\x00y\x00a'))
 # buf = bytearray(100)
