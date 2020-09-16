@@ -34,6 +34,13 @@ class CommandProcessor:
         self.type = None
         self.len = 0
         self.alive = True
+        self.lock = RLock()
+
+    def setAlive(self, live: bool):
+        if live == True:
+            self.alive = True
+        else:
+            self.alive = False
 
     def clientNewChunk(self, chunk: bytes):
         if self.buffer == b'':
@@ -107,21 +114,18 @@ class ListenerThread(Thread):
         while True:
             try:
                while True:
-                    if self.processor.alive == False:
-                        break
                     receivedData = self.s.recv(1024)
                     if not receivedData:
                         return
                     if not self.processor.clientNewChunk(receivedData):
                         return
+                    with self.processor.lock:
+                        if self.processor.alive == False:
+                                break
             except ConnectionResetError:
                 logger.info('server closed connection')
-                LOCK.acquire()
-                try:
-                   self.processor.alive = False
-                finally:
-                    LOCK.release()
-                break
+                with self.processor.lock:
+                    self.processor.setAlive(False)
             except:
                 logger.info('error', exc_info=True)
                 break
@@ -153,13 +157,15 @@ class Main():
         root = tk.Tk()
         root.withdraw()
         processor = CommandProcessor()
-        processor.alive = True
+        with processor.lock:
+            processor.setAlive(True)
         breakFromLoop = False
         while True:
             while True:
                 try:
-                    if processor.alive == False:
-                        break
+                    with processor.lock:
+                        if processor.alive == False:
+                            break
                     msg = input('')
                     if 'picture:' in msg:
                         create = CreatePicture()
@@ -187,11 +193,10 @@ class Main():
                         s.sendall(forSend)
                 except ConnectionResetError:
                     logger.info('server closed connection')
-                    LOCK.acquire()
                     try:
-                        processor.alive = False
+                        with processor.lock:
+                            processor.setAlive(False)
                     finally:
-                        LOCK.release()
                         breakFromLoop = True
                     break
                 except:
@@ -201,10 +206,11 @@ class Main():
                 logger.info('Finish client on %s:%s' % (HOST, PORT))
             if breakFromLoop == True:
                 break
-        if processor.alive == False:
-            s.close()
-            time.sleep(1)
-            nextMain = Main()
-            nextMain.mainChatFunction()
+        with processor.lock:
+            if processor.alive == False:
+                s.close()
+                time.sleep(1)
+                nextMain = Main()
+                nextMain.mainChatFunction()
 main = Main()
 main.mainChatFunction()
