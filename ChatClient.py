@@ -35,6 +35,8 @@ class CommandProcessor:
         self.len = 0
         self.alive = True
         self.lock = RLock()
+        self.savedMessage = None
+        self.breakFromLoop = False
 
     def setAlive(self, live: bool):
         if live == True:
@@ -112,6 +114,7 @@ class ListenerThread(Thread):
 
     def run(self):
         while True:
+            receivedData = None
             try:
                while True:
                     receivedData = self.s.recv(1024)
@@ -126,9 +129,13 @@ class ListenerThread(Thread):
                 logger.info('server closed connection')
                 with self.processor.lock:
                     self.processor.setAlive(False)
+                    break
             except:
                 logger.info('error', exc_info=True)
                 break
+        if receivedData != None:
+            self.processor.clientNewChunk(receivedData)
+
 
 
 class CreateSocket():
@@ -147,19 +154,27 @@ class CreateSocket():
         listenThread.start()
 
 class Main():
+
+    def __init__ (self):
+        self.s = None
+
     def mainChatFunction (self):
         createS = CreateSocket()
         s = createS.createSocket(HOST, PORT, name)
         createS.createListenerThread(s)
-        writer = WriterAndReader()
+        self.s = s
         chatLogger.info('If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
         chatLogger.info('If you want send picture to someone enter "name: picture:" and press enter, if you want send picture to everyone press enter without name')
         root = tk.Tk()
         root.withdraw()
         processor = CommandProcessor()
+        self.breakFromLoop = False
+        if processor.savedMessage != None:
+            self.processingMessage(processor.savedMessage)
+            processor.savedMessage = None
         with processor.lock:
             processor.setAlive(True)
-        breakFromLoop = False
+        msg = None
         while True:
             while True:
                 try:
@@ -167,44 +182,27 @@ class Main():
                         if processor.alive == False:
                             break
                     msg = input('')
-                    if 'picture:' in msg:
-                        create = CreatePicture()
-                        toClient = create.nameOfReceiver(msg)
-                        chatLogger.info('please select a picture')
-                        pathToPicture = create.openPicture()
-                        if pathToPicture == False:
-                            continue
-                        if toClient == False:
-                            forSend = create.sendPicture(pathToPicture)
-                        else:
-                            forSend = create.sendPicToClient(toClient, pathToPicture)
-                        s.sendall(forSend)
-                    elif ':' in msg:
-                        create = CreateText()
-                        forSend = create.determineNameOfClient(msg)
-                        s.sendall(forSend)
-                    elif msg == 'exit':
-                        forSend = writer.createMessage(MessageType.EXIT,bytearray())
-                        s.sendall (forSend)
-                        breakFromLoop = True
-                        break
-                    else:
-                        forSend = writer.createMessage(MessageType.TEXT, bytearray(msg, 'UTF-8'))
-                        s.sendall(forSend)
+                    if msg != None:
+                       self.processingMessage(msg)
+                       msg = None
+                       if self.breakFromLoop == True:
+                           break
                 except ConnectionResetError:
+                    if msg != None:
+                        processor.savedMessage = msg
                     logger.info('server closed connection')
                     try:
                         with processor.lock:
                             processor.setAlive(False)
                     finally:
-                        breakFromLoop = True
+                        self.breakFromLoop = True
                     break
                 except:
                     logger.info('error',exc_info=True)
-                    breakFromLoop = True
+                    self.breakFromLoop = True
                     break
                 logger.info('Finish client on %s:%s' % (HOST, PORT))
-            if breakFromLoop == True:
+            if self.breakFromLoop == True:
                 break
         with processor.lock:
             if processor.alive == False:
@@ -212,5 +210,31 @@ class Main():
                 time.sleep(1)
                 nextMain = Main()
                 nextMain.mainChatFunction()
+
+    def processingMessage(self, msg: str):
+        writer = WriterAndReader()
+        if 'picture:' in msg:
+            create = CreatePicture()
+            toClient = create.nameOfReceiver(msg)
+            chatLogger.info('please select a picture')
+            pathToPicture = create.openPicture()
+            if pathToPicture == False:
+                pass
+            if toClient == False:
+                forSend = create.sendPicture(pathToPicture)
+            else:
+                forSend = create.sendPicToClient(toClient, pathToPicture)
+            self.s.sendall(forSend)
+        elif ':' in msg:
+            create = CreateText()
+            forSend = create.determineNameOfClient(msg)
+            self.s.sendall(forSend)
+        elif msg == 'exit':
+            forSend = writer.createMessage(MessageType.EXIT, bytearray())
+            self.s.sendall(forSend)
+            self.breakFromLoop = True
+        else:
+            forSend = writer.createMessage(MessageType.TEXT, bytearray(msg, 'UTF-8'))
+            self.s.sendall(forSend)
 main = Main()
 main.mainChatFunction()
