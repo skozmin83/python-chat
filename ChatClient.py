@@ -9,10 +9,10 @@ from Constants import MessageType
 from Constants import ClientStatus
 from WriterAndReader import WriterAndReader
 import io
-import time
 from CreatePicture import CreatePicture
 from CreateText import CreateText
 from threading import RLock
+from collections import deque
 
 logger = Logging.getLogger('client')
 chatLogger = Logging.getChatLogger('chat')
@@ -35,7 +35,6 @@ class CommandProcessor:
         self.len = 0
         self.alive = True
         self.lock = RLock()
-        self.savedMessage = None
         self.breakFromLoop = False
 
     def setAlive(self, live: bool):
@@ -113,6 +112,7 @@ class ListenerThread(Thread):
 
 
     def run(self):
+        breakFromListenerLoop = False
         while True:
             receivedData = None
             try:
@@ -124,14 +124,23 @@ class ListenerThread(Thread):
                         return
                     with self.processor.lock:
                         if self.processor.alive == False:
-                                break
+                            breakFromListenerLoop = True
+                            break
+                    if breakFromListenerLoop == True:
+                        break
             except ConnectionResetError:
                 logger.info('server closed connection')
+                breakFromListenerLoop = True
+                with self.processor.lock:
+                    self.processor.breakFromLoop = True
                 with self.processor.lock:
                     self.processor.setAlive(False)
                     break
             except:
                 logger.info('error', exc_info=True)
+                breakFromListenerLoop = True
+                break
+            if breakFromListenerLoop == True:
                 break
         if receivedData != None:
             self.processor.clientNewChunk(receivedData)
@@ -158,20 +167,21 @@ class Main():
     def __init__ (self):
         self.s = None
 
-    def mainChatFunction (self):
+    def mainChatFunction (self, savedMessage: deque):
         createS = CreateSocket()
         s = createS.createSocket(HOST, PORT, name)
         createS.createListenerThread(s)
         self.s = s
-        chatLogger.info('If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
-        chatLogger.info('If you want send picture to someone enter "name: picture:" and press enter, if you want send picture to everyone press enter without name')
+        # chatLogger.info('If you want send message to someone enter "name: message" and press enter, if you want send message to everyone enter message without name')
+        # chatLogger.info('If you want send picture to someone enter "name: picture:" and press enter, if you want send picture to everyone press enter without name')
         root = tk.Tk()
         root.withdraw()
         processor = CommandProcessor()
-        self.breakFromLoop = False
-        if processor.savedMessage != None:
-            self.processingMessage(processor.savedMessage)
-            processor.savedMessage = None
+        with processor.lock:
+            self.breakFromLoop = False
+        while len(savedMessage)>0:
+            newMsg = savedMessage.popleft()
+            self.processingMessage(newMsg)
         with processor.lock:
             processor.setAlive(True)
         msg = None
@@ -181,35 +191,39 @@ class Main():
                     with processor.lock:
                         if processor.alive == False:
                             break
+                        if processor.breakFromLoop == True:
+                            break
                     msg = input('')
-                    if msg != None:
+                    if msg != '':
                        self.processingMessage(msg)
-                       msg = None
-                       if self.breakFromLoop == True:
-                           break
+                    with processor.lock:
+                        if self.breakFromLoop == True:
+                            break
                 except ConnectionResetError:
                     if msg != None:
-                        processor.savedMessage = msg
-                    logger.info('server closed connection')
+                        savedMessage.append(msg)
+                        logger.info('server closed connection')
                     try:
                         with processor.lock:
                             processor.setAlive(False)
                     finally:
                         self.breakFromLoop = True
-                    break
+                        break
                 except:
                     logger.info('error',exc_info=True)
-                    self.breakFromLoop = True
-                    break
-                logger.info('Finish client on %s:%s' % (HOST, PORT))
-            if self.breakFromLoop == True:
-                break
-        with processor.lock:
-            if processor.alive == False:
-                s.close()
-                time.sleep(1)
-                nextMain = Main()
-                nextMain.mainChatFunction()
+                    with processor.lock:
+                        self.breakFromLoop = True
+                        break
+                with processor.lock:
+                    if self.breakFromLoop == True:
+                        break
+            with processor.lock:
+                if processor.alive == False:
+                    s.close()
+                    nextMain = Main()
+                    nextMain.mainChatFunction(savedMessage)
+            logger.info('Finish client on %s:%s' % (HOST, PORT))
+
 
     def processingMessage(self, msg: str):
         writer = WriterAndReader()
@@ -232,9 +246,11 @@ class Main():
         elif msg == 'exit':
             forSend = writer.createMessage(MessageType.EXIT, bytearray())
             self.s.sendall(forSend)
-            self.breakFromLoop = True
+            processor = CommandProcessor()
+            with processor.lock:
+                self.breakFromLoop = True
         else:
             forSend = writer.createMessage(MessageType.TEXT, bytearray(msg, 'UTF-8'))
             self.s.sendall(forSend)
 main = Main()
-main.mainChatFunction()
+main.mainChatFunction(deque())
