@@ -80,15 +80,15 @@ class Film():
         fileIn.close()
         p1 += (p2T - p1T)
 
-        # logger.info('time = {} seconds'.format(p1))
-        # logger.info('{} mb per second'.format(((fileInSize/SIZE_1B)/ (p1))))
+        logger.info('time = {} seconds'.format(p1))
+        logger.info('{} mb per second'.format(((fileInSize/SIZE_1MB)/ (p1))))
 
 logger.info('start')
 
 fi = Film()
 fileInPath = 'C:/Users/tanya/Downloads/A Sound of Thunder.avi'
-print(fi.filmCode(fileInPath, fileInPath + '.new.avi'))
-print(fi.filmDecode(fileInPath + '.new.avi', fileInPath + '.changed.avi'))
+print(fi.filmCode(fileInPath, fileInPath + '.new.avi', 16))
+print(fi.filmDecode(fileInPath + '.new.avi', fileInPath + '.changed.avi', 16))
 
 # fileInPath = 'C:/Users/tanya/Downloads/a.txt'
 # fi.filmCode(fileInPath, fileInPath + '.new.txt')
@@ -98,9 +98,9 @@ print(fi.filmDecode(fileInPath + '.new.avi', fileInPath + '.changed.avi'))
 # fi.filmCode(fileInPath, fileInPath + '.new.txt')
 # fi.filmDecode(fileInPath + '.new.txt', fileInPath + '.changed.txt')
 
-fileInPath = 'C:/Users/tanya/Downloads/Tourist.mkv'
-fi.filmCode(fileInPath, fileInPath + '.new.mkv')
-fi.filmDecode(fileInPath + '.new.mkv', fileInPath + '.changed.mkv')
+# fileInPath = 'C:/Users/tanya/Downloads/Tourist.mkv'
+# fi.filmCode(fileInPath, fileInPath + '.new.mkv', 16)
+# fi.filmDecode(fileInPath + '.new.mkv', fileInPath + '.changed.mkv', 16)
 
 
 # fileInPath = 'C:/Users/tanya/Downloads/c.txt'
